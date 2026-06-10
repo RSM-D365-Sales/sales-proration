@@ -18,6 +18,7 @@ const { app } = require('@azure/functions');
 const portal = require('../server/portalService');
 const branding = require('../server/branding');
 const d365 = require('../server/d365Client');
+const config = require('../server/config');
 const { verifyBearer } = require('../server/entraAuth');
 
 function json(status, body) { return { status, jsonBody: body }; }
@@ -85,6 +86,39 @@ app.http('branding', {
   route: 'branding',
   authLevel: 'anonymous',
   handler: guarded(async () => json(200, branding.get())),
+});
+
+// Setup is READ-ONLY when hosted: the D365 connection comes from Function App
+// settings (D365_CONFIG_MODE=env), not an editable store — serverless storage
+// is ephemeral and backend config/secrets must not be editable from a public
+// web form. The Setup page reads `readOnly: true` and hides its edit controls;
+// profile editing remains a local-development feature.
+app.http('setupEnvironments', {
+  methods: ['GET'],
+  route: 'setup/environments',
+  authLevel: 'anonymous',
+  handler: guarded(async () => {
+    const c = config.getActiveConfig();
+    return json(200, {
+      readOnly: true,
+      activeId: c.id,
+      environments: [{
+        id: c.id, label: c.label, baseUrl: c.baseUrl,
+        tenantId: c.tenantId, clientId: c.clientId, company: c.company,
+        serviceGroup: c.serviceGroup, service: c.service, operation: c.operation,
+        scope: c.scope, timeoutMs: c.timeoutMs,
+        secretEnvVar: c.secretEnvVar, secretConfigured: !!c.clientSecret,
+      }],
+      defaults: {},
+    });
+  }),
+});
+
+app.http('setupTest', {
+  methods: ['POST'],
+  route: 'setup/test',
+  authLevel: 'anonymous',
+  handler: guarded(async () => json(200, await d365.testConnection())),
 });
 
 // The local-outbox demo endpoints (/api/batches) are intentionally absent:

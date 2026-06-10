@@ -5,7 +5,7 @@ let STATE = { activeId: null, environments: [], defaults: {} };
 let BRAND_DRAFT = null;  // working copy for the Branding tab (preview before save)
 let BRAND_SAVED = null;  // last persisted branding, for Revert
 
-async function jget(url) { const r = await AUTH.fetch(url); if (!r.ok) throw new Error(r.statusText); return r.json(); }
+async function jget(url) { const r = await AUTH.fetch(url); if (!r.ok) throw new Error(r.statusText || `HTTP ${r.status}`); return r.json(); }
 async function jsend(method, url, body) {
   const r = await AUTH.fetch(url, {
     method,
@@ -13,7 +13,7 @@ async function jsend(method, url, body) {
     body: body ? JSON.stringify(body) : undefined,
   });
   const data = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(data.error || r.statusText);
+  if (!r.ok) throw new Error(data.error || r.statusText || `HTTP ${r.status}`);
   return data;
 }
 
@@ -47,6 +47,15 @@ function wireTabs() {
 async function renderEnvironments() {
   STATE = await jget('/api/setup/environments');
   const tbody = document.querySelector('#env-table tbody');
+  const readOnly = !!STATE.readOnly;
+
+  // Hosted mode: the API's D365 connection comes from Azure Function App
+  // settings, so profiles can't be edited from the browser — show, don't edit.
+  document.getElementById('btn-new').classList.toggle('hidden', readOnly);
+  if (readOnly) {
+    banner('Hosted mode — the D365 connection is managed in the Azure Function App’s ' +
+      'environment variables (D365_*). Environment editing is available when running locally.');
+  }
 
   if (!STATE.environments.length) {
     tbody.innerHTML = `<tr><td colspan="6" class="muted">No environments yet. Click “New environment”.</td></tr>`;
@@ -54,17 +63,17 @@ async function renderEnvironments() {
     tbody.innerHTML = STATE.environments.map(e => {
       const active = e.id === STATE.activeId;
       const secret = e.secretConfigured ? `<span class="chip OK">set</span>` : `<span class="chip Short">missing</span>`;
+      const actions = readOnly ? '<span class="muted">managed in Azure</span>' : `
+          ${active ? '' : `<button data-act="activate" data-id="${esc(e.id)}">Make active</button>`}
+          <button data-act="edit" data-id="${esc(e.id)}">Edit</button>
+          <button data-act="delete" data-id="${esc(e.id)}">Delete</button>`;
       return `<tr>
         <td>${active ? '<span class="chip OK">active</span>' : ''}</td>
         <td><strong>${esc(e.label)}</strong><div class="muted">${esc(e.id)}</div></td>
         <td>${esc(e.baseUrl) || '<span class="muted">—</span>'}</td>
         <td><code>${esc(e.company)}</code></td>
         <td>${secret} <code>${esc(e.secretEnvVar)}</code></td>
-        <td style="white-space:nowrap">
-          ${active ? '' : `<button data-act="activate" data-id="${esc(e.id)}">Make active</button>`}
-          <button data-act="edit" data-id="${esc(e.id)}">Edit</button>
-          <button data-act="delete" data-id="${esc(e.id)}">Delete</button>
-        </td>
+        <td style="white-space:nowrap">${actions}</td>
       </tr>`;
     }).join('');
   }
@@ -164,6 +173,13 @@ async function loadBrandingTab() {
   BRAND_SAVED = await jget('/api/branding');
   BRAND_DRAFT = JSON.parse(JSON.stringify(BRAND_SAVED));
   fillBrandingForm(BRAND_DRAFT);
+  if (STATE.readOnly) {
+    // Hosted: branding ships with the deploy (server/data/branding.json in the
+    // repo); the live preview still works, but persisting is local-only.
+    const save = document.getElementById('b-save');
+    save.disabled = true;
+    save.title = 'Hosted mode — edit server/data/branding.json in the repo to change branding.';
+  }
 }
 
 function fillBrandingForm(b) {
