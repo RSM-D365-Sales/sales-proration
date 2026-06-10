@@ -325,6 +325,7 @@ h1, h2, h3 { font-family: var(--font-display); color: var(--ink); font-weight: v
 .item-card h3 { margin: 0; font-size: 1.02rem; display: flex; align-items: center; gap: .55rem; letter-spacing: var(--display-tracking, -.01em); }
 .item-card .meta { color: var(--muted); font-size: .8rem; margin-top: .2rem; font-variant-numeric: tabular-nums; }
 .item-card .grid { border: 0; border-radius: 0; box-shadow: none; border-top: 1px solid var(--line); }
+.item-card__actions { display: flex; align-items: center; gap: .65rem; flex: none; }
 
 .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 1.35rem; margin-top: 1.75rem; box-shadow: var(--shadow-sm); }
 .panel > h3 { margin: 0 0 1.1rem; font-size: 1.08rem; letter-spacing: var(--display-tracking, -.01em); }

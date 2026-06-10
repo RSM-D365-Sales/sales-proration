@@ -1,10 +1,10 @@
 // ---- shared helpers -------------------------------------------------------
 // All API calls go through AUTH.fetch (auth.js): it prefixes the configured
 // API base URL and attaches the Entra bearer token when sign-in is enabled.
-async function jget(url) { const r = await AUTH.fetch(url); if (!r.ok) throw new Error(r.statusText); return r.json(); }
+async function jget(url) { const r = await AUTH.fetch(url); if (!r.ok) throw new Error(r.statusText || `HTTP ${r.status}`); return r.json(); }
 async function jpost(url, body) {
   const r = await AUTH.fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
-  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || r.statusText);
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || r.statusText || `HTTP ${r.status}`);
   return r.json();
 }
 function pct(n) { return (n * 100).toFixed(1) + '%'; }
@@ -210,10 +210,19 @@ function renderCustomerRows() {
     : `<tr><td colspan="7" class="muted">No customers match the current filters.</td></tr>`;
 }
 
-// ---- Detail ---------------------------------------------------------------
-let DETAIL = null;          // loaded commodity payload
-let CURRENT_ITEM = null;    // item the user is prorating
-let CURRENT_RESULTS = null; // last proration response
+// ---- Commodity detail: inline proration -------------------------------------
+//
+// The strategy bar at the top prorates one item ("Prorate" on its card) or
+// every item in the commodity ("Prorate all items"). Results render INLINE as
+// three extra columns on each item's demand grid — Allocated (editable),
+// Fill %, Weight — plus a running "remaining inventory" chip per item:
+//   green  (+N to allocate)   you freed units by lowering an allocation
+//   red    (−N over-allocated) you promised more than is available — short
+//                              someone else or dial it back
+// One "Approve & Send" publishes every allocated line as a single batch.
+
+let DETAIL = null;       // loaded commodity payload
+let PRORATIONS = {};     // itemId -> /api/prorate response
 
 async function renderDetail() {
   try { await initShell({ active: 'plan' }); } catch (e) { console.error('[shell]', e); }
@@ -247,18 +256,55 @@ async function renderDetail() {
     ${kpi('Fill rate', pct(fill), STATUS[statusOf(fill)].label, true)}
   `;
 
-  document.getElementById('items').innerHTML = DETAIL.items.map(itemCard).join('');
+  PRORATIONS = {};
+  renderItems();
 
   document.getElementById('pp-strategy').addEventListener('change', e => {
     document.getElementById('pp-alpha-wrap').classList.toggle('hidden', e.target.value !== 'HistoryAware');
   });
-  document.getElementById('pp-run').addEventListener('click', runProration);
+  document.getElementById('pp-run-all').addEventListener('click', prorateAll);
   document.getElementById('pp-approve').addEventListener('click', approveBatch);
+
+  // Delegated handlers survive re-renders of #items.
+  const items = document.getElementById('items');
+  items.addEventListener('click', e => {
+    const btn = e.target.closest('button[data-prorate]');
+    if (btn) prorateItem(btn.dataset.prorate, btn);
+  });
+  items.addEventListener('input', onAllocEdit);
+
+  // Deep link: commodity.html?id=…&prorate=all runs the default strategy
+  // across every item on load — handy for demos.
+  if (qs('prorate') === 'all') prorateAll();
 }
 
+function renderItems() {
+  document.getElementById('items').innerHTML = DETAIL.items.map(itemCard).join('');
+  updateSummary();
+}
+
+function lineKey(l) { return `${l.salesId}:${l.lineNum}`; }
+
 function itemCard(it) {
+  const pr = PRORATIONS[it.itemId];
+  const byKey = pr ? Object.fromEntries(pr.lines.map(l => [lineKey(l), l])) : {};
+
+  const extraHead = pr
+    ? `<th class="num">Allocated</th><th class="num">Fill %</th><th class="num">Weight</th>` : '';
+
   const demandRows = it.demand.length
-    ? it.demand.map(d => `
+    ? it.demand.map(d => {
+        let extra = '';
+        if (pr) {
+          const l = byKey[lineKey(d)];
+          extra = l ? `
+            <td class="num"><input type="number" class="alloc-input" min="0" max="${l.requestedQty}" step="1"
+                 value="${l.allocatedQty}" data-item="${esc(it.itemId)}" data-key="${esc(lineKey(l))}" /></td>
+            <td class="num fill-cell">${pct(l.requestedQty ? l.allocatedQty / l.requestedQty : 0)}</td>
+            <td class="num">${l.weightUsed.toFixed(2)}</td>`
+            : `<td class="num muted" colspan="3">—</td>`;
+        }
+        return `
         <tr>
           <td>${esc(d.salesId)} / ${esc(d.lineNum)}</td>
           <td>${esc(d.customerName)} <span class="muted">(P${esc(d.priority)})</span></td>
@@ -266,8 +312,11 @@ function itemCard(it) {
           <td>${esc(d.warehouseId)}</td>
           <td>${esc(d.requestedShipDate)}</td>
           <td class="num">${fmt(d.requestedQty)}</td>
-        </tr>`).join('')
-    : `<tr><td colspan="6" class="muted">No open demand.</td></tr>`;
+          ${extra}
+        </tr>`;
+      }).join('')
+    : `<tr><td colspan="${pr ? 9 : 6}" class="muted">No open demand.</td></tr>`;
+
   const fill = it.totalDemand ? it.totalSupply / it.totalDemand : 1;
   return `
     <div class="item-card">
@@ -276,86 +325,125 @@ function itemCard(it) {
           <h3><img class="thumb" src="${commodityIconUrl(DETAIL.commodity)}" alt="">${esc(it.name)}</h3>
           <div class="meta">${esc(it.itemId)} · Demand ${fmt(it.totalDemand)} · Supply ${fmt(it.totalSupply)} · Fill ${pct(fill)}</div>
         </div>
-        <button onclick="openProrate('${esc(it.itemId)}')">Run Proration</button>
+        <div class="item-card__actions">
+          ${pr ? remainingChip(it.itemId) : ''}
+          <button data-prorate="${esc(it.itemId)}" ${it.demand.length ? '' : 'disabled'}>${pr ? 'Re-run' : 'Prorate'}</button>
+        </div>
       </header>
       <table class="grid">
-        <thead><tr><th>SO / Line</th><th>Customer</th><th>Site</th><th>WH</th><th>Req. Ship</th><th class="num">Requested</th></tr></thead>
+        <thead><tr><th>SO / Line</th><th>Customer</th><th>Site</th><th>WH</th><th>Req. Ship</th><th class="num">Requested</th>${extraHead}</tr></thead>
         <tbody>${demandRows}</tbody>
       </table>
     </div>`;
 }
 
-function openProrate(itemId) {
-  CURRENT_ITEM = DETAIL.items.find(i => i.itemId === itemId);
-  CURRENT_RESULTS = null;
-  document.getElementById('prorate-panel').classList.remove('hidden');
-  document.getElementById('pp-item').textContent = `${CURRENT_ITEM.name} (${CURRENT_ITEM.itemId})`;
-  document.getElementById('pp-results').classList.add('hidden');
-  document.getElementById('pp-actions').style.display = 'none';
-  document.getElementById('prorate-panel').scrollIntoView({ behavior: 'smooth' });
+/** Inventory still on the table for an item = available − sum(allocated). */
+function remainingFor(itemId) {
+  const pr = PRORATIONS[itemId];
+  return pr.available - pr.lines.reduce((s, l) => s + (Number(l.allocatedQty) || 0), 0);
 }
 
-async function runProration() {
-  if (!CURRENT_ITEM) return;
-  const strategy = document.getElementById('pp-strategy').value;
-  const alpha = parseFloat(document.getElementById('pp-alpha').value);
-  const body = { strategy, itemId: CURRENT_ITEM.itemId, alpha };
-  const res = await jpost('/api/prorate', body);
-  CURRENT_RESULTS = res;
+function remainingChip(itemId) {
+  const rem = remainingFor(itemId);
+  const cls = rem > 0 ? 'OK' : rem < 0 ? 'Short' : 'plain';
+  const label = rem > 0 ? `+${fmt(rem)} to allocate`
+              : rem < 0 ? `${fmt(rem)} over-allocated`
+              : 'fully allocated';
+  return `<span class="chip ${cls}" data-rem="${esc(itemId)}" title="Available ${fmt(PRORATIONS[itemId].available)} − allocated">${label}</span>`;
+}
 
-  const tbody = document.querySelector('#pp-results tbody');
-  tbody.innerHTML = res.lines.map((l, idx) => {
-    const cust = DETAIL.items.flatMap(i => i.demand).find(d => d.salesId === l.salesId && d.lineNum === l.lineNum);
-    const name = cust ? `${cust.customerName} (P${cust.priority})` : l.customerId;
-    const fill = l.requestedQty ? l.allocatedQty / l.requestedQty : 0;
-    return `<tr data-idx="${idx}">
-      <td>${esc(l.salesId)} / ${esc(l.lineNum)}</td>
-      <td>${esc(name)}</td>
-      <td>${esc(l.siteId)}</td>
-      <td>${esc(l.warehouseId)}</td>
-      <td class="num">${fmt(l.requestedQty)}</td>
-      <td class="num"><input type="number" class="alloc-input" min="0" max="${l.requestedQty}" step="1" value="${l.allocatedQty}" data-idx="${idx}" /></td>
-      <td class="num fill-cell">${pct(fill)}</td>
-      <td class="num">${l.weightUsed.toFixed(2)}</td>
-    </tr>`;
-  }).join('');
+function currentStrategy() {
+  return {
+    strategy: document.getElementById('pp-strategy').value,
+    alpha: parseFloat(document.getElementById('pp-alpha').value),
+  };
+}
 
-  tbody.querySelectorAll('.alloc-input').forEach(inp => inp.addEventListener('input', onAllocEdit));
-  updateProrationTotals();
+async function prorateItem(itemId, btn) {
+  const { strategy, alpha } = currentStrategy();
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  try {
+    PRORATIONS[itemId] = await jpost('/api/prorate', { strategy, itemId, alpha });
+    renderItems();
+  } catch (err) {
+    alert(`Proration failed for ${itemId}: ${err.message}`);
+    renderItems();
+  }
+}
 
-  document.getElementById('pp-results').classList.remove('hidden');
-  document.getElementById('pp-actions').style.display = 'flex';
+async function prorateAll() {
+  const { strategy, alpha } = currentStrategy();
+  const targets = DETAIL.items.filter(it => it.demand.length);
+  if (!targets.length) return;
+
+  const btn = document.getElementById('pp-run-all');
+  btn.disabled = true;
+  const original = btn.textContent;
+  btn.textContent = `Prorating ${targets.length} items…`;
+  try {
+    const results = await Promise.all(
+      targets.map(it => jpost('/api/prorate', { strategy, itemId: it.itemId, alpha })));
+    targets.forEach((it, i) => { PRORATIONS[it.itemId] = results[i]; });
+    renderItems();
+  } catch (err) {
+    alert(`Prorate all failed: ${err.message}`);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = original;
+  }
 }
 
 function onAllocEdit(e) {
-  const idx = Number(e.target.dataset.idx);
-  const line = CURRENT_RESULTS.lines[idx];
+  if (!e.target.classList.contains('alloc-input')) return;
+  const itemId = e.target.dataset.item;
+  const pr = PRORATIONS[itemId];
+  const line = pr.lines.find(l => lineKey(l) === e.target.dataset.key);
+  if (!line) return;
+
   let v = Number(e.target.value);
   if (!Number.isFinite(v) || v < 0) v = 0;
   if (v > line.requestedQty) { v = line.requestedQty; e.target.value = v; }
   line.allocatedQty = v;
+
   const row = e.target.closest('tr');
-  const fill = line.requestedQty ? v / line.requestedQty : 0;
-  row.querySelector('.fill-cell').textContent = pct(fill);
-  updateProrationTotals();
+  row.querySelector('.fill-cell').textContent = pct(line.requestedQty ? v / line.requestedQty : 0);
+
+  // Live remaining-inventory chip: green when units were freed up, red when
+  // the item is promised beyond available supply.
+  const chip = document.querySelector(`[data-rem="${CSS.escape(itemId)}"]`);
+  if (chip) chip.outerHTML = remainingChip(itemId);
+
+  updateSummary();
 }
 
-function updateProrationTotals() {
-  const totalAllocated = CURRENT_RESULTS.lines.reduce((s, l) => s + (Number(l.allocatedQty) || 0), 0);
-  CURRENT_RESULTS.totalAllocated = totalAllocated;
-  document.getElementById('pp-req-total').textContent = fmt(CURRENT_RESULTS.totalRequested);
-  document.getElementById('pp-alloc-total').textContent = fmt(totalAllocated);
-  document.getElementById('pp-fill-total').textContent = pct(CURRENT_RESULTS.totalRequested ? totalAllocated / CURRENT_RESULTS.totalRequested : 0);
+function updateSummary() {
+  const prorated = Object.values(PRORATIONS);
+  const lines = prorated.flatMap(p => p.lines).filter(l => Number(l.allocatedQty) > 0);
+  const allocated = lines.reduce((s, l) => s + Number(l.allocatedQty), 0);
+  const requested = prorated.reduce((s, p) => s + p.totalRequested, 0);
+
+  const summary = document.getElementById('pp-summary');
+  summary.textContent = prorated.length
+    ? `${prorated.length} of ${DETAIL.items.length} items prorated · ${fmt(allocated)} of ${fmt(requested)} allocated`
+    : '';
+
+  const approve = document.getElementById('pp-approve');
+  approve.classList.toggle('hidden', lines.length === 0);
+  approve.textContent = lines.length ? `Approve & Send ${lines.length} line(s) to D365` : 'Approve & Send to D365';
 }
 
 async function approveBatch() {
-  if (!CURRENT_RESULTS) return;
-
-  const lines = CURRENT_RESULTS.lines
+  const lines = Object.values(PRORATIONS)
+    .flatMap(p => p.lines)
     .filter(l => Number(l.allocatedQty) > 0)
     .map(l => ({ salesId: l.salesId, lineNum: l.lineNum, itemId: l.itemId, allocatedQty: l.allocatedQty }));
 
   if (lines.length === 0) { alert('Nothing to send — no line has an allocated quantity.'); return; }
+
+  // Warn (but allow) sending while an item is over-allocated.
+  const over = Object.keys(PRORATIONS).filter(id => remainingFor(id) < 0);
+  if (over.length && !confirm(
+    `${over.length} item(s) are over-allocated (red). Send anyway?`)) return;
 
   const btn = document.getElementById('pp-approve');
   btn.disabled = true;
