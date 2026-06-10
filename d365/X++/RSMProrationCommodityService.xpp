@@ -1,0 +1,49 @@
+// File: RSMProrationCommodityService.xpp
+// Model:  RSM_SalesProration
+// Group:  RSMProrationReadSvcGrp  (Custom Service)
+// Purpose: Read-only service feeding the external Proration app.
+//
+// NOTE: This is a design stub for the companion BRD. Real implementation will
+//       live in the D365 F&SCM AOT and be exposed via SysOperationServiceController
+//       or a SysOperation framework service contract.
+
+[SysEntryPointAttribute(true)]
+public class RSMProrationCommodityService
+{
+    /// <summary>
+    /// Returns all commodities with roll-up demand and supply across all
+    /// child items for the current planning horizon.
+    /// </summary>
+    public List getCommodities()
+    {
+        List          result = new List(Types::Class);
+        RSMCommodity  commodity;
+
+        while select commodity
+        {
+            RSMProrationCommodityContract c = new RSMProrationCommodityContract();
+            c.parmCommodityId(commodity.CommodityId);
+            c.parmName(commodity.Name);
+            c.parmTotalDemand(RSMProrationDemandHelper::sumOpenDemandByCommodity(commodity.CommodityId));
+            c.parmTotalSupply(RSMProrationSupplyHelper::sumAvailableByCommodity(commodity.CommodityId));
+            result.addEnd(c);
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Returns the item, demand, and supply detail for one commodity.
+    /// Filtered by site/warehouse if provided (optional).
+    /// </summary>
+    public RSMProrationCommodityDetailContract getCommodityDetail(
+        CommodityId   _commodityId,
+        InventSiteId  _siteId = '',
+        InventLocationId _warehouseId = '')
+    {
+        RSMProrationCommodityDetailContract detail = new RSMProrationCommodityDetailContract();
+        detail.parmCommodityId(_commodityId);
+        detail.parmItems(RSMProrationItemHelper::listItemsForCommodity(
+            _commodityId, _siteId, _warehouseId));
+        return detail;
+    }
+}

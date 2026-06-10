@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Lettuce">
+  <path d="M32 56c-13 0-21-8-21-19 0-3 2-5 5-4-1-4 2-8 7-7-1-5 4-9 9-6 5-3 10 1 9 6 5-1 8 3 7 7 3-1 5 1 5 4 0 11-8 19-21 19Z" fill="#6cbf4a"/>
+  <path d="M32 56c-9 0-15-4-18-11 4 5 10 7 18 7s14-2 18-7c-3 7-9 11-18 11Z" fill="#4f9c34"/>
+  <path d="M32 50c-7 0-12-3-15-9 0-2 2-3 4-2 0-3 3-5 6-3 0-4 4-6 7-4 3-2 7 0 7 4 3-2 6 0 6 3 2-1 4 0 4 2-3 6-8 9-15 9Z" fill="#8fd96a"/>
+  <path d="M32 24v26M24 32c3 3 5 9 5 16M40 32c-3 3-5 9-5 16" fill="none" stroke="#4f9c34" stroke-width="2" stroke-linecap="round" opacity=".7"/>
+</svg>

@@ -1,0 +1,143 @@
+// File: RSMProrationContracts.xpp
+// Model:  RSM_SalesProration
+// Purpose: SysOperation / OData-serializable data contracts used by the
+//          read services, the inbound batch consumer, and the outbound
+//          event publisher.
+//
+// One file shown here for brevity; in the real project each contract is its
+// own class file under AxClass/RSMProration*Contract.xml.
+
+// -----------------------------------------------------------------------------
+// Read: Commodity rollup
+// -----------------------------------------------------------------------------
+[DataContractAttribute]
+public class RSMProrationCommodityContract
+{
+    str     commodityId;
+    str     name;
+    decimal totalDemand;
+    decimal totalSupply;
+
+    [DataMemberAttribute] public str     parmCommodityId(str _v = commodityId) { commodityId = _v; return commodityId; }
+    [DataMemberAttribute] public str     parmName(str _v = name)               { name        = _v; return name; }
+    [DataMemberAttribute] public decimal parmTotalDemand(decimal _v = totalDemand) { totalDemand = _v; return totalDemand; }
+    [DataMemberAttribute] public decimal parmTotalSupply(decimal _v = totalSupply) { totalSupply = _v; return totalSupply; }
+}
+
+// -----------------------------------------------------------------------------
+// Read: Supply per item / site / warehouse
+// -----------------------------------------------------------------------------
+[DataContractAttribute]
+public class RSMProrationSupplyContract
+{
+    str     itemId;  str siteId; str warehouseId;
+    decimal onHandQty; decimal inboundQty; decimal availableQty;
+
+    [DataMemberAttribute] public str     parmItemId     (str _v = itemId)     { itemId      = _v; return itemId; }
+    [DataMemberAttribute] public str     parmSiteId     (str _v = siteId)     { siteId      = _v; return siteId; }
+    [DataMemberAttribute] public str     parmWarehouseId(str _v = warehouseId){ warehouseId = _v; return warehouseId; }
+    [DataMemberAttribute] public decimal parmOnHandQty  (decimal _v = onHandQty)  { onHandQty   = _v; return onHandQty; }
+    [DataMemberAttribute] public decimal parmInboundQty (decimal _v = inboundQty) { inboundQty  = _v; return inboundQty; }
+    [DataMemberAttribute] public decimal parmAvailableQty(decimal _v = availableQty){ availableQty = _v; return availableQty; }
+}
+
+// -----------------------------------------------------------------------------
+// Read: Open demand line
+// -----------------------------------------------------------------------------
+[DataContractAttribute]
+public class RSMProrationDemandContract
+{
+    str     salesId; int lineNum; str itemId; str customerId;
+    str     siteId; str warehouseId;
+    decimal requestedQty;
+    date    requestedShipDate; date confirmedShipDate;
+    str     currencyCode; decimal linePriceAmount;
+
+    [DataMemberAttribute] public str     parmSalesId           (str _v = salesId)           { salesId = _v; return salesId; }
+    [DataMemberAttribute] public int     parmLineNum           (int _v = lineNum)           { lineNum = _v; return lineNum; }
+    [DataMemberAttribute] public str     parmItemId            (str _v = itemId)            { itemId = _v; return itemId; }
+    [DataMemberAttribute] public str     parmCustomerId        (str _v = customerId)        { customerId = _v; return customerId; }
+    [DataMemberAttribute] public str     parmSiteId            (str _v = siteId)            { siteId = _v; return siteId; }
+    [DataMemberAttribute] public str     parmWarehouseId       (str _v = warehouseId)       { warehouseId = _v; return warehouseId; }
+    [DataMemberAttribute] public decimal parmRequestedQty      (decimal _v = requestedQty)  { requestedQty = _v; return requestedQty; }
+    [DataMemberAttribute] public date    parmRequestedShipDate (date _v = requestedShipDate){ requestedShipDate = _v; return requestedShipDate; }
+    [DataMemberAttribute] public date    parmConfirmedShipDate (date _v = confirmedShipDate){ confirmedShipDate = _v; return confirmedShipDate; }
+    [DataMemberAttribute] public str     parmCurrencyCode      (str _v = currencyCode)      { currencyCode = _v; return currencyCode; }
+    [DataMemberAttribute] public decimal parmLinePriceAmount   (decimal _v = linePriceAmount){ linePriceAmount = _v; return linePriceAmount; }
+}
+
+// -----------------------------------------------------------------------------
+// Read: Customer + priority + fill-history
+// -----------------------------------------------------------------------------
+[DataContractAttribute]
+public class RSMProrationCustomerContract
+{
+    str     customerId; str name;
+    int     priority;
+    boolean isDistributionCenter;
+    str     parentCustomerId;
+    str     shipToCity; str shipToState;
+    decimal avgFillRate4w;
+    List    fillRateHistory;   // List of RSMProrationFillRatePoint
+
+    [DataMemberAttribute] public str     parmCustomerId          (str _v = customerId) { customerId = _v; return customerId; }
+    [DataMemberAttribute] public str     parmName                (str _v = name)       { name = _v; return name; }
+    [DataMemberAttribute] public int     parmPriority            (int _v = priority)   { priority = _v; return priority; }
+    [DataMemberAttribute] public boolean parmIsDistributionCenter(boolean _v = isDistributionCenter) { isDistributionCenter = _v; return isDistributionCenter; }
+    [DataMemberAttribute] public str     parmParentCustomerId    (str _v = parentCustomerId) { parentCustomerId = _v; return parentCustomerId; }
+    [DataMemberAttribute] public str     parmShipToCity          (str _v = shipToCity) { shipToCity = _v; return shipToCity; }
+    [DataMemberAttribute] public str     parmShipToState         (str _v = shipToState){ shipToState = _v; return shipToState; }
+    [DataMemberAttribute] public decimal parmAvgFillRate4w       (decimal _v = avgFillRate4w) { avgFillRate4w = _v; return avgFillRate4w; }
+    [DataMemberAttribute] public List    parmFillRateHistory     (List _v = fillRateHistory)  { fillRateHistory = _v; return fillRateHistory; }
+}
+
+// -----------------------------------------------------------------------------
+// Inbound: proration batch message (app -> SysMessageService -> processor)
+//
+// One SysMessageService message per approved batch. The head record carries
+// the BatchId; Records holds one entry per allocated sales line. The message
+// processor deserializes `_messageContent` straight into this contract:
+//   { "BatchId": "47beadc2-…", "Records": [
+//       { "SalesOrderNumber": "000751", "SalesLineNumber": 1,
+//         "ItemId": "A0001", "DeliveryReminder": 5 }, … ] }
+// -----------------------------------------------------------------------------
+[DataContractAttribute]
+public class RSMProrationBatchContract
+{
+    str     batchId;
+    List    records;           // List of RSMProrationBatchRecordContract
+
+    [DataMemberAttribute('BatchId')]
+    public str parmBatchId(str _v = batchId) { batchId = _v; return batchId; }
+
+    [DataMemberAttribute('Records'),
+     DataCollectionAttribute(Types::Class, classStr(RSMProrationBatchRecordContract))]
+    public List parmRecords(List _v = records) { records = _v; return records; }
+
+    public static RSMProrationBatchContract fromJson(str _json)
+    {
+        return FormJsonSerializer::deserializeObject(
+            classNum(RSMProrationBatchContract), _json);
+    }
+}
+
+[DataContractAttribute]
+public class RSMProrationBatchRecordContract
+{
+    str     salesOrderNumber;
+    int     salesLineNumber;
+    str     itemId;
+    decimal deliveryReminder;  // the prorated (allocated) quantity
+
+    [DataMemberAttribute('SalesOrderNumber')]
+    public str parmSalesOrderNumber(str _v = salesOrderNumber) { salesOrderNumber = _v; return salesOrderNumber; }
+
+    [DataMemberAttribute('SalesLineNumber')]
+    public int parmSalesLineNumber(int _v = salesLineNumber) { salesLineNumber = _v; return salesLineNumber; }
+
+    [DataMemberAttribute('ItemId')]
+    public str parmItemId(str _v = itemId) { itemId = _v; return itemId; }
+
+    [DataMemberAttribute('DeliveryReminder')]
+    public decimal parmDeliveryReminder(decimal _v = deliveryReminder) { deliveryReminder = _v; return deliveryReminder; }
+}

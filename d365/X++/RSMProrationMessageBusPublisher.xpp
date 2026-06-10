@@ -1,0 +1,80 @@
+// File: RSMProrationMessageBusPublisher.xpp
+// Model:   RSM_SalesProration
+// Purpose: Publishes outbound events from D365 to the Service Bus topic
+//          `d365-proration-events` so the external app can show status
+//          (Applied / PartiallyApplied / Failed) in near real time.
+//
+// Configuration is read from `RSMProrationParameters`:
+//   - ServiceBusFqdn          (e.g. rsm-erp-sb.servicebus.windows.net)
+//   - OutboundTopicName       (default: d365-proration-events)
+//   - KeyVaultSecretName      (managed-identity-backed SAS or AAD scope)
+//
+// Authentication uses the F&SCM **managed identity** via
+// SysAzureKeyVaultParameters; SAS keys are NOT stored in AOT.
+
+public class RSMProrationMessageBusPublisher
+{
+    private str            topicName;
+    private System.Object  busClient;   // Azure.Messaging.ServiceBus.ServiceBusClient
+
+    public void new()
+    {
+        RSMProrationParameters p = RSMProrationParameters::find();
+        this.topicName = p.OutboundTopicName
+            ? p.OutboundTopicName
+            : 'd365-proration-events';
+
+        this.busClient = RSMProrationServiceBusFactory::createClient(
+            p.ServiceBusFqdn,
+            p.AuthMode);            // ManagedIdentity | SAS
+    }
+
+    /// <summary>
+    /// Publish a single ProrationApplied event.
+    /// </summary>
+    public void publishApplied(
+        guid    _batchId,
+        str     _status,            // Applied | PartiallyApplied | Failed
+        List    _lineResults)
+    {
+        Map env = new Map(Types::String, Types::AnyType);
+        env.insert('batchId',    guid2Str(_batchId));
+        env.insert('appliedUtc', DateTimeUtil::toStr(DateTimeUtil::utcNow()));
+        env.insert('status',     _status);
+        env.insert('lineResults', _lineResults.pack());
+
+        str body = FormJsonSerializer::serializeClass(env);
+        this.send(body, guid2Str(_batchId), 'ProrationApplied');
+    }
+
+    /// <summary>
+    /// Publish a generic event with a typed name (extensible).
+    /// </summary>
+    public void publish(str _eventType, str _jsonBody, str _correlationId = '')
+    {
+        this.send(_jsonBody, _correlationId, _eventType);
+    }
+
+    private void send(str _body, str _correlationId, str _label)
+    {
+        try
+        {
+            // Pseudocode bridge to the .NET Service Bus SDK via CLR interop.
+            // The actual implementation lives in a thin .NET helper assembly
+            // referenced from this model (RSM.Proration.ServiceBus.dll).
+            RSMProrationServiceBusFactory::sendMessage(
+                this.busClient,
+                this.topicName,
+                _body,
+                _correlationId,
+                _label);
+        }
+        catch (Exception::CLRError)
+        {
+            // log and surface to SysOperation
+            RSMProrationAuditLog::logBusError(_correlationId, _label,
+                CLRInterop::getLastException().ToString());
+            throw;
+        }
+    }
+}

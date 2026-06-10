@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Secrets & local-only state — never commit
+.env
+local.settings.json
+
+# Local demo outbox (stub message queue)
+.outbox/
+
+# Local D365 environment profiles (tenant ids, env URLs — per-machine state,
+# managed from the Setup page; hosted deployments use app settings instead)
+server/data/environments.json
+
+# Local tooling
+.claude/
+.ignore/
+
+# Logs / OS noise
+*.log
+Thumbs.db
+.DS_Store

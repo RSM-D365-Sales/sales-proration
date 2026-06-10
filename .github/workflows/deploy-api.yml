@@ -1,0 +1,48 @@
+# Deploys the API (Azure Functions, Node v4 model — api/ + server/) to a
+# Function App.
+#
+# One-time setup:
+#   1. Create a Function App (Linux, Node 20, Consumption is fine).
+#   2. Function App > Settings > Environment variables — add:
+#        D365_CONFIG_MODE = env
+#        D365_BASE_URL / D365_TENANT_ID / D365_CLIENT_ID / D365_CLIENT_SECRET
+#        D365_COMPANY  (+ optional D365_SERVICE_GROUP / D365_SERVICE /
+#                       D365_OPERATION / D365_SCOPE / D365_TIMEOUT_MS)
+#        AUTH_TENANT_ID / AUTH_CLIENT_ID   (Entra app registration)
+#   3. Function App > API > CORS — add your GitHub Pages origin
+#      (e.g. https://prorate.yourdomain.com).
+#   4. Repo secrets:
+#        AZURE_FUNCTIONAPP_PUBLISH_PROFILE  (download from the Function App)
+#      Repo variables:
+#        AZURE_FUNCTIONAPP_NAME             (the app name)
+
+name: Deploy API to Azure Functions
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'api/**'
+      - 'server/**'
+      - 'host.json'
+      - 'package.json'
+      - '.github/workflows/deploy-api.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci --omit=dev
+      - run: npm test
+        env:
+          NODE_ENV: test
+      - uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ vars.AZURE_FUNCTIONAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
+          package: .

@@ -1,0 +1,57 @@
+// File: RSMProrationDemandService.xpp
+// Model:   RSM_SalesProration
+// Group:   RSMProrationReadSvcGrp
+// Purpose: Returns open sales-order demand for an item, optionally filtered
+//          by site/warehouse and a requested-ship-date horizon.
+//
+// "Open" demand = SalesLine where:
+//      SalesLine.SalesStatus  in [Backorder, None]
+//   && SalesLine.RemainSalesPhysical > 0
+//   && SalesTable.SalesType    in [Sales, Journal] (configurable)
+
+[SysEntryPointAttribute(true)]
+public class RSMProrationDemandService
+{
+    public List getOpenDemand(
+        ItemId           _itemId,
+        InventSiteId     _siteId      = '',
+        InventLocationId _warehouseId = '',
+        TransDate        _shipFrom    = dateNull(),
+        TransDate        _shipTo      = dateNull())
+    {
+        List       result = new List(Types::Class);
+        SalesLine  sl;
+        SalesTable st;
+        InventDim  id;
+
+        while select sl
+            where sl.ItemId        == _itemId
+                && sl.SalesStatus  == SalesStatus::Backorder
+                && sl.RemainSalesPhysical > 0
+                && (!_shipFrom || sl.ShippingDateRequested >= _shipFrom)
+                && (!_shipTo   || sl.ShippingDateRequested <= _shipTo)
+            join st
+                where st.SalesId == sl.SalesId
+            join id
+                where id.inventDimId == sl.InventDimId
+                    && (!_siteId      || id.InventSiteId     == _siteId)
+                    && (!_warehouseId || id.InventLocationId == _warehouseId)
+        {
+            RSMProrationDemandContract row = new RSMProrationDemandContract();
+            row.parmSalesId(sl.SalesId);
+            row.parmLineNum(sl.LineNum);
+            row.parmItemId(sl.ItemId);
+            row.parmCustomerId(st.CustAccount);
+            row.parmSiteId(id.InventSiteId);
+            row.parmWarehouseId(id.InventLocationId);
+            row.parmRequestedQty(sl.RemainSalesPhysical);
+            row.parmRequestedShipDate(sl.ShippingDateRequested);
+            row.parmConfirmedShipDate(sl.ShippingDateConfirmed);
+            row.parmCurrencyCode(st.CurrencyCode);
+            row.parmLinePriceAmount(sl.LineAmount);
+            result.addEnd(row);
+        }
+
+        return result;
+    }
+}

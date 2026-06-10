@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Grapes">
+  <path d="M34 14c0-4 3-7 8-7-1 4-3 6-6 7 4 0 7 2 9 5-4-1-7-1-10 0Z" fill="#3da35a"/>
+  <rect x="30.5" y="12" width="3" height="10" rx="1.5" fill="#7d5a36"/>
+  <g fill="#8457ad">
+    <circle cx="32" cy="26" r="6"/>
+    <circle cx="23" cy="31" r="6"/><circle cx="41" cy="31" r="6"/>
+    <circle cx="32" cy="36" r="6"/>
+    <circle cx="24" cy="42" r="6"/><circle cx="40" cy="42" r="6"/>
+    <circle cx="32" cy="47" r="6"/>
+    <circle cx="32" cy="56" r="5.5"/>
+  </g>
+  <g fill="#6f458f">
+    <circle cx="41" cy="31" r="6"/><circle cx="40" cy="42" r="6"/><circle cx="32" cy="47" r="6"/>
+  </g>
+  <g fill="#a37fc6" opacity=".7">
+    <circle cx="30" cy="24" r="1.8"/><circle cx="21" cy="29" r="1.6"/><circle cx="30" cy="34" r="1.6"/>
+  </g>
+</svg>

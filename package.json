@@ -1,0 +1,19 @@
+{
+  "name": "sales-prorate-app",
+  "version": "0.1.0",
+  "description": "Shell app for Sales Order Proration Accelerator (vibed companion to D365 F&SCM build)",
+  "main": "api/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node server/index.js",
+    "test": "node --test test/services.test.js"
+  },
+  "dependencies": {
+    "@azure/functions": "^4.16.0",
+    "express": "^4.19.2",
+    "jose": "^6.2.3"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

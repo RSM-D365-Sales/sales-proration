@@ -1,0 +1,92 @@
+// File: RSMProrationSupplyService.xpp
+// Model:   RSM_SalesProration
+// Group:   RSMProrationReadSvcGrp  (Custom Service)
+// Purpose: Read-only service that returns available supply (on-hand + inbound
+//          within the planning horizon) for an item, optionally constrained
+//          to a site / warehouse.
+//
+// Underlying data sources:
+//   - InventSum           : on-hand
+//   - InventTrans         : open/confirmed inbound receipts (PurchLine, ProdJournalBOM, TransferLine)
+//   - InventDim           : site / warehouse dimensions
+//   - WHSInventOnHand     : (WMS-enabled warehouses) reservable / picked split
+//
+// All quantities returned are in the item's inventory UOM.
+
+[SysEntryPointAttribute(true)]
+public class RSMProrationSupplyService
+{
+    /// <summary>
+    /// Returns available supply for one item across all sites/warehouses,
+    /// or filtered by site/warehouse.
+    /// </summary>
+    public List getAvailableSupply(
+        ItemId           _itemId,
+        InventSiteId     _siteId      = '',
+        InventLocationId _warehouseId = '',
+        TransDate        _horizonTo   = dateNull())
+    {
+        List result = new List(Types::Class);
+
+        if (!_horizonTo)
+        {
+            // default horizon = today + 7 days
+            _horizonTo = DateTimeUtil::date(DateTimeUtil::utcNow()) + 7;
+        }
+
+        InventSum  inventSum;
+        InventDim  inventDim;
+
+        while select sum(AvailPhysical), sum(AvailOrdered) from inventSum
+            group by inventDim.InventSiteId, inventDim.InventLocationId
+            exists join inventDim
+                where inventDim.inventDimId == inventSum.InventDimId
+                    && (!_siteId      || inventDim.InventSiteId     == _siteId)
+                    && (!_warehouseId || inventDim.InventLocationId == _warehouseId)
+            where inventSum.ItemId == _itemId
+        {
+            RSMProrationSupplyContract row = new RSMProrationSupplyContract();
+            row.parmItemId(_itemId);
+            row.parmSiteId(inventDim.InventSiteId);
+            row.parmWarehouseId(inventDim.InventLocationId);
+            row.parmOnHandQty(inventSum.AvailPhysical);
+            row.parmInboundQty(
+                RSMProrationSupplyHelper::sumInboundReceipts(
+                    _itemId,
+                    inventDim.InventSiteId,
+                    inventDim.InventLocationId,
+                    _horizonTo));
+            row.parmAvailableQty(row.parmOnHandQty() + row.parmInboundQty());
+            result.addEnd(row);
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Single-row helper - sums supply for an item at a specific site/wh.
+    /// </summary>
+    public RSMProrationSupplyContract getAvailableSupplyAt(
+        ItemId           _itemId,
+        InventSiteId     _siteId,
+        InventLocationId _warehouseId,
+        TransDate        _horizonTo = dateNull())
+    {
+        List rows = this.getAvailableSupply(_itemId, _siteId, _warehouseId, _horizonTo);
+        ListEnumerator e = rows.getEnumerator();
+        if (e.moveNext())
+        {
+            return e.current();
+        }
+
+        // empty result -> zeroed contract
+        RSMProrationSupplyContract empty = new RSMProrationSupplyContract();
+        empty.parmItemId(_itemId);
+        empty.parmSiteId(_siteId);
+        empty.parmWarehouseId(_warehouseId);
+        empty.parmOnHandQty(0);
+        empty.parmInboundQty(0);
+        empty.parmAvailableQty(0);
+        return empty;
+    }
+}

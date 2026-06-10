@@ -1,0 +1,46 @@
+/* Skin: Refined enterprise (alternate demo front-end).
+   Cooler neutral grays, tighter geometry, denser data, flatter surfaces — the
+   "serious tool" look, set in IBM Plex Sans (loaded in the page head).
+   Selectable from Setup > Branding so you can switch the whole feel for a
+   demo without touching markup. Accent/sidebar still come from branding.json.
+   To add another front-end, copy this file, change the tokens, and register
+   the name in server/branding.js THEMES + the Setup picker. */
+
+:root[data-theme="enterprise"] {
+  --bg: #f2f4f7;
+  --surface: #ffffff;
+  --surface-2: #f6f8fa;
+  --ink: #1a212c;
+  --ink-soft: #44505f;
+  --muted: #687486;
+  --line: #e2e6ec;
+  --line-strong: #c9d1da;
+
+  --radius: 6px;
+  --radius-sm: 4px;
+  --shadow-sm: 0 1px 2px rgba(28, 36, 48, .05);
+  --shadow-md: 0 4px 14px rgba(28, 36, 48, .10);
+
+  --font-sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-display: "IBM Plex Sans", "Segoe UI Semibold", "Segoe UI", system-ui, sans-serif;
+  --display-weight: 600;
+  --display-tracking: -.012em;
+}
+
+/* Denser, flatter, more table-forward. */
+:root[data-theme="enterprise"] body { font-size: 13.5px; }
+:root[data-theme="enterprise"] .card { box-shadow: none; }
+:root[data-theme="enterprise"] .card:hover { transform: none; box-shadow: var(--shadow-md); }
+:root[data-theme="enterprise"] .card:hover .card__media img { transform: none; }
+:root[data-theme="enterprise"] .card__media { aspect-ratio: 21 / 9; }
+:root[data-theme="enterprise"] .card__media img { max-width: 76px; width: 38%; }
+:root[data-theme="enterprise"] .kpis { box-shadow: none; }
+:root[data-theme="enterprise"] .kpi { padding: .85rem 1.1rem .8rem; }
+:root[data-theme="enterprise"] .kpi .value { font-size: 1.5rem; }
+:root[data-theme="enterprise"] .pagehead h1 { font-size: 1.3rem; }
+:root[data-theme="enterprise"] .grid th,
+:root[data-theme="enterprise"] .grid td { padding: .45rem .75rem; }
+:root[data-theme="enterprise"] .grid { box-shadow: none; }
+:root[data-theme="enterprise"] .grid thead th { background: var(--surface-2); }
+:root[data-theme="enterprise"] .panel,
+:root[data-theme="enterprise"] .item-card { box-shadow: none; }

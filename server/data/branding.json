@@ -1,0 +1,10 @@
+{
+  "brandName": "Sales Proration",
+  "tagline": "Proration Accelerator for D365 F&SCM",
+  "logo": null,
+  "theme": "editorial",
+  "colors": {
+    "accent": "#295bd1",
+    "sidebar": "#4e7461"
+  }
+}

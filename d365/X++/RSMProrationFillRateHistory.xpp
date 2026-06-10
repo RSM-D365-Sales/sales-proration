@@ -1,0 +1,90 @@
+// File: RSMProrationFillRateHistory.xpp
+// Model:  RSM_SalesProration
+// Purpose: Stores rolled-up weekly fill rate per customer for the
+//          History-Aware proration strategy.
+//
+// Source feed: a nightly batch job that walks closed SalesLine rows and
+// computes  filled = sum(ConfirmedQty) / sum(RequestedQty)  per
+// (CustAccount, WeekStartingDate).
+
+public class RSMProrationFillRateHistory extends common
+{
+    // ---- Table fields (declared in AOT) --------------------------------------
+    // CustAccount, WeekStarting, RequestedQty, FilledQty, FillRate (computed),
+    // CommodityId (optional roll-up), CreatedDateTime
+
+    /// <summary>
+    /// Average fill rate (0..1) over the last N completed weeks for one customer.
+    /// </summary>
+    public static decimal avgFillRate(CustAccount _custId, int _lookbackWeeks)
+    {
+        TransDate cutoff = systemDateGet() - (_lookbackWeeks * 7);
+        RSMProrationFillRateHistory h;
+
+        select sum(RequestedQty), sum(FilledQty) from h
+            where h.CustAccount   == _custId
+                && h.WeekStarting >= cutoff;
+
+        if (h.RequestedQty <= 0) { return 1.0; }
+        return h.FilledQty / h.RequestedQty;
+    }
+
+    /// <summary>
+    /// Returns a weekly series for charting / drill-down in the app.
+    /// </summary>
+    public static List weeklySeries(CustAccount _custId, int _lookbackWeeks)
+    {
+        List result = new List(Types::Class);
+        TransDate cutoff = systemDateGet() - (_lookbackWeeks * 7);
+        RSMProrationFillRateHistory h;
+
+        while select h
+            where h.CustAccount   == _custId
+                && h.WeekStarting >= cutoff
+            order by h.WeekStarting asc
+        {
+            RSMProrationFillRatePoint p = new RSMProrationFillRatePoint();
+            p.parmWeekStarting(h.WeekStarting);
+            p.parmRequestedQty(h.RequestedQty);
+            p.parmFilledQty(h.FilledQty);
+            p.parmFillRate(h.RequestedQty ? h.FilledQty / h.RequestedQty : 1.0);
+            result.addEnd(p);
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Called by the nightly rollup job.
+    /// </summary>
+    public static void upsertWeekly(
+        CustAccount _custId,
+        TransDate   _weekStarting,
+        decimal     _requestedQty,
+        decimal     _filledQty,
+        str         _commodityId = '')
+    {
+        ttsbegin;
+        RSMProrationFillRateHistory h;
+        select forupdate firstonly h
+            where h.CustAccount  == _custId
+               && h.WeekStarting == _weekStarting
+               && h.CommodityId  == _commodityId;
+
+        if (h)
+        {
+            h.RequestedQty = _requestedQty;
+            h.FilledQty    = _filledQty;
+            h.update();
+        }
+        else
+        {
+            h.CustAccount  = _custId;
+            h.WeekStarting = _weekStarting;
+            h.RequestedQty = _requestedQty;
+            h.FilledQty    = _filledQty;
+            h.CommodityId  = _commodityId;
+            h.insert();
+        }
+        ttscommit;
+    }
+}

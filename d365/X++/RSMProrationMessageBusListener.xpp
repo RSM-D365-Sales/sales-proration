@@ -1,0 +1,73 @@
+// File: RSMProrationMessageBusListener.xpp
+// Model:   RSM_SalesProration
+// Purpose: A batch-mode listener that pulls ProrationBatch messages off the
+//          inbound Service Bus topic `d365-proration-inbound` and hands each
+//          one to RSMProrationBatchConsumer.apply().
+//
+// Runs as a recurring batch job (RunbookBatch). Each invocation drains up to
+// `MaxMessagesPerRun` messages, or until the topic is empty / lock window is
+// reached. Failed messages are dead-lettered with a reason code.
+//
+// At-least-once semantics. Idempotency is enforced by BatchId in the audit log.
+
+public class RSMProrationMessageBusListener extends RunBaseBatch
+{
+    private int  maxPerRun;
+
+    public boolean canGoBatchJournal() { return true; }
+
+    public void initParameters()
+    {
+        RSMProrationParameters p = RSMProrationParameters::find();
+        this.maxPerRun = p.MaxInboundPerRun ? p.MaxInboundPerRun : 200;
+    }
+
+    public void run()
+    {
+        this.initParameters();
+
+        RSMProrationParameters p = RSMProrationParameters::find();
+        System.Object processor = RSMProrationServiceBusFactory::createReceiver(
+            p.ServiceBusFqdn,
+            p.InboundTopicName ? p.InboundTopicName : 'd365-proration-inbound',
+            p.InboundSubscriptionName ? p.InboundSubscriptionName : 'd365-erp',
+            p.AuthMode);
+
+        RSMProrationMessageBusPublisher publisher = new RSMProrationMessageBusPublisher();
+        int processed = 0;
+
+        while (processed < this.maxPerRun)
+        {
+            System.Object msg = RSMProrationServiceBusFactory::receiveOne(processor);
+            if (msg == null) { break; }
+
+            str body          = RSMProrationServiceBusFactory::body(msg);
+            str correlationId = RSMProrationServiceBusFactory::correlationId(msg);
+
+            try
+            {
+                RSMProrationBatchContract contract =
+                    RSMProrationBatchContract::fromJson(body);
+
+                RSMProrationBatchConsumer consumer = new RSMProrationBatchConsumer();
+                ProrationApplied applied = consumer.apply(contract);
+
+                publisher.publishApplied(
+                    contract.parmBatchId(),
+                    applied.parmStatus(),
+                    applied.parmLineResults());
+
+                RSMProrationServiceBusFactory::complete(processor, msg);
+            }
+            catch (Exception e)
+            {
+                RSMProrationAuditLog::logInboundFailure(correlationId, body,
+                    Exception::getLastError());
+                RSMProrationServiceBusFactory::deadLetter(
+                    processor, msg, 'ProcessingFailure', Exception::getLastError());
+            }
+
+            processed++;
+        }
+    }
+}

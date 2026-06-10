@@ -1,0 +1,74 @@
+// File: RSMProrationCustomerService.xpp
+// Model:   RSM_SalesProration
+// Group:   RSMProrationReadSvcGrp
+// Purpose: Returns customer master info + the proration priority and recent
+//          fill-rate history used by the Weighted and History-Aware strategies.
+//
+// Tables:
+//   CustTable                       (extended with RSMProrationPriority field)
+//   DirPartyTable, LogisticsPostalAddress  (for name + ship-to address)
+//   RSMProrationFillRateHistory     (new) - rolled-up weekly fill % per customer
+
+[SysEntryPointAttribute(true)]
+public class RSMProrationCustomerService
+{
+    /// <summary>
+    /// Bulk lookup for the planner UI. Pass a list of CustAccount values;
+    /// receive priority + recent fill history per customer.
+    /// </summary>
+    public List getCustomers(List _customerIds = null)
+    {
+        List      result = new List(Types::Class);
+        CustTable ct;
+
+        while select ct
+            where (!_customerIds || _customerIds.indexOf(ct.AccountNum) >= 0)
+        {
+            RSMProrationCustomerContract c = new RSMProrationCustomerContract();
+            c.parmCustomerId(ct.AccountNum);
+            c.parmName(DirPartyTable::findRec(ct.Party).Name);
+            c.parmPriority(ct.RSMProrationPriority
+                ? ct.RSMProrationPriority
+                : 3);                                       // default standard
+            c.parmIsDistributionCenter(ct.RSMIsDistributionCenter);
+            c.parmParentCustomerId(ct.RSMParentCustomerId);  // group rollup
+            c.parmShipToCity(RSMProrationCustomerHelper::primaryShipCity(ct));
+            c.parmShipToState(RSMProrationCustomerHelper::primaryShipState(ct));
+
+            // Last 4 weeks average fill rate (history-aware input)
+            c.parmAvgFillRate4w(
+                RSMProrationFillRateHistory::avgFillRate(ct.AccountNum, 4));
+            c.parmFillRateHistory(
+                RSMProrationFillRateHistory::weeklySeries(ct.AccountNum, 4));
+
+            result.addEnd(c);
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Used by planners to update a customer's priority from the app
+    /// (writes back to CustTable extension).
+    /// </summary>
+    public boolean setPriority(CustAccount _customerId, int _priority)
+    {
+        if (_priority < 1 || _priority > 5)
+        {
+            throw error("Priority must be 1..5");
+        }
+
+        ttsbegin;
+        CustTable ct = CustTable::find(_customerId, true);
+        if (!ct)
+        {
+            ttsabort;
+            return false;
+        }
+        ct.RSMProrationPriority = _priority;
+        ct.update();
+        ttscommit;
+
+        return true;
+    }
+}

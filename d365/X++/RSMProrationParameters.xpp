@@ -1,0 +1,39 @@
+// File: RSMProrationParameters.xpp
+// Model: RSM_SalesProration
+// Purpose: System-wide configuration table for the proration accelerator.
+//          Surfaced via a System Administration > Setup form.
+
+public class RSMProrationParameters extends common
+{
+    // ---- Fields (declared on the table object in AOT) -----------------------
+    // Key, ServiceBusFqdn, InboundTopicName, InboundSubscriptionName,
+    // OutboundTopicName, AuthMode (enum: ManagedIdentity / SAS),
+    // KeyVaultSecretName, MaxInboundPerRun, DefaultPriority,
+    // HistoryLookbackWeeks, HistoryAlpha, HorizonDays
+
+    public static RSMProrationParameters find(boolean _forUpdate = false)
+    {
+        RSMProrationParameters p;
+        p.selectForUpdate(_forUpdate);
+
+        select firstonly p where p.Key == 0;
+        if (!p)
+        {
+            ttsbegin;
+            p.Key                       = 0;
+            p.ServiceBusFqdn            = '';
+            p.InboundTopicName          = 'd365-proration-inbound';
+            p.InboundSubscriptionName   = 'd365-erp';
+            p.OutboundTopicName         = 'd365-proration-events';
+            p.AuthMode                  = RSMProrationAuthMode::ManagedIdentity;
+            p.MaxInboundPerRun          = 200;
+            p.DefaultPriority           = 3;
+            p.HistoryLookbackWeeks      = 4;
+            p.HistoryAlpha              = 0.5;
+            p.HorizonDays               = 7;
+            p.insert();
+            ttscommit;
+        }
+        return p;
+    }
+}

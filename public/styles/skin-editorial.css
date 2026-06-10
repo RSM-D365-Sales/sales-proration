@@ -1,0 +1,35 @@
+/* Skin: Editorial produce-brand (default).
+   Warm paper ground, serif display type (Fraunces, loaded in the page head
+   with system-serif fallbacks), hairline rules — the look of a printed
+   grower's catalog rather than a software dashboard. The accent + sidebar
+   colors themselves come from branding.json (injected by shell.js) — this
+   file owns the surrounding palette, density, and "feel". */
+
+:root[data-theme="editorial"] {
+  --bg: #f7f5ee;
+  --surface: #fffefa;
+  --surface-2: #faf8f1;
+  --ink: #211f17;
+  --ink-soft: #4b4a3f;
+  --muted: #76746a;
+  --line: #e8e4d8;
+  --line-strong: #d4cfbf;
+
+  --radius: 10px;
+  --radius-sm: 7px;
+  --shadow-sm: 0 1px 2px rgba(46, 42, 28, .05);
+  --shadow-md: 0 10px 28px rgba(46, 42, 28, .10), 0 3px 8px rgba(46, 42, 28, .05);
+
+  --font-display: "Fraunces", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  --display-weight: 560;
+  --display-tracking: -.01em;
+}
+
+/* Serif display numbers read editorial; give them a touch more size. */
+:root[data-theme="editorial"] .kpi .value { font-size: 2rem; }
+:root[data-theme="editorial"] .pagehead h1 { font-size: 1.6rem; }
+:root[data-theme="editorial"] .card__media { aspect-ratio: 5 / 3; }
+:root[data-theme="editorial"] .card__title { font-size: 1.12rem; }
+
+/* Hairline, print-like table headers. */
+:root[data-theme="editorial"] .grid thead th { background: transparent; }

@@ -1,0 +1,70 @@
+// File: RSMProrationBatchConsumer.xpp
+// Model:  RSM_SalesProration
+// Purpose: Invoked by the message processor for queue
+//          `rsmSalesProrateAccelerator`. The web app publishes one
+//          SysMessageService message per approved batch — a head record
+//          (BatchId) plus a Records array of allocated sales lines — which is
+//          deserialized into RSMProrationBatchContract and applied here.
+//
+// Idempotency: BatchId is unique-indexed in RSMProrationAuditLog. A duplicate
+//              delivery short-circuits and returns success.
+
+public class RSMProrationBatchConsumer
+{
+    public ProrationApplied apply(RSMProrationBatchContract _batch)
+    {
+        // 1. Idempotency check
+        if (RSMProrationAuditLog::existsBatch(_batch.parmBatchId()))
+        {
+            return RSMProrationEventBuilder::alreadyApplied(_batch.parmBatchId());
+        }
+
+        ttsbegin;
+
+        RSMProrationAuditLog audit;
+        audit.BatchId     = _batch.parmBatchId();
+        audit.ReceivedUtc = DateTimeUtil::utcNow();
+        audit.insert();
+
+        List lineResults = new List(Types::Class);
+
+        ListEnumerator le = _batch.parmRecords().getEnumerator();
+        while (le.moveNext())
+        {
+            RSMProrationBatchRecordContract rec = le.current();
+
+            SalesLine sl = SalesLine::find(rec.parmSalesOrderNumber(), rec.parmSalesLineNumber(), true);
+            if (!sl)
+            {
+                lineResults.addEnd(
+                    RSMProrationEventBuilder::lineFailed(rec, 'SalesLine not found'));
+                continue;
+            }
+
+            // Defensive validation: never increase a line, never go negative.
+            if (rec.parmDeliveryReminder() < 0 || rec.parmDeliveryReminder() > sl.SalesQty)
+            {
+                lineResults.addEnd(
+                    RSMProrationEventBuilder::lineFailed(rec, 'Invalid quantity'));
+                continue;
+            }
+
+            RSMProrationBatchLine bl;
+            bl.BatchId      = _batch.parmBatchId();
+            bl.SalesId      = rec.parmSalesOrderNumber();
+            bl.LineNum      = rec.parmSalesLineNumber();
+            bl.OriginalQty  = sl.SalesQty;
+            bl.AllocatedQty = rec.parmDeliveryReminder();
+            bl.insert();
+
+            sl.SalesQty = rec.parmDeliveryReminder();
+            sl.update();
+
+            lineResults.addEnd(RSMProrationEventBuilder::lineApplied(rec));
+        }
+
+        ttscommit;
+
+        return RSMProrationEventBuilder::batchApplied(_batch.parmBatchId(), lineResults);
+    }
+}

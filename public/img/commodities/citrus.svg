@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Citrus">
+  <circle cx="30" cy="36" r="22" fill="#f5a01e"/>
+  <circle cx="30" cy="36" r="22" fill="#d9851a" opacity=".0"/>
+  <path d="M30 14a22 22 0 0122 22Z" fill="#ffd06a" opacity=".55"/>
+  <circle cx="30" cy="36" r="16" fill="#ffe3a6"/>
+  <circle cx="30" cy="36" r="16" fill="#fff" opacity=".25"/>
+  <g stroke="#f5a01e" stroke-width="2" stroke-linecap="round">
+    <path d="M30 36V21M30 36v15M30 36h15M30 36H15M30 36l11-11M30 36L19 25M30 36l11 11M30 36L19 47"/>
+  </g>
+  <circle cx="30" cy="36" r="3" fill="#ffcf6a"/>
+  <path d="M44 16c5-5 10-5 12-3-2 2-3 6-8 8-3 1-6 0-7-1 1-1 2-3 3-4Z" fill="#3da35a"/>
+</svg>
