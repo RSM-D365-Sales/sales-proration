@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxEnum xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+  <Name>RSMSubstitutionDirection</Name>
+  <Label>Substitution direction</Label>
+  <Help>Whether the substitution applies one way (From item can be replaced by To item) or in both directions.</Help>
+  <Tags>RSM_SalesProration</Tags>
+  <UseEnumValue>No</UseEnumValue>
+  <EnumValues>
+    <AxEnumValue>
+      <Name>OneWay</Name>
+      <Label>One way (From → To)</Label>
+      <Value>0</Value>
+    </AxEnumValue>
+    <AxEnumValue>
+      <Name>Bidirectional</Name>
+      <Label>Bidirectional</Label>
+      <Value>1</Value>
+    </AxEnumValue>
+  </EnumValues>
+</AxEnum>

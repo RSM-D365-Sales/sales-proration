@@ -79,6 +79,17 @@ app.http('prorateSend', {
   }),
 });
 
+app.http('substituteSend', {
+  methods: ['POST'],
+  route: 'substitute/send',
+  authLevel: 'anonymous',
+  handler: guarded(async (request) => {
+    const body = await request.json().catch(() => ({}));
+    const result = await portal.sendSubstitutions(body.substitutions);
+    return json(result.ok ? 202 : 502, result);
+  }),
+});
+
 // Branding is read-only when hosted — edit server/data/branding.json in the
 // repo (it deploys with the app). Live editing via Setup is a local feature.
 app.http('branding', {

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxMenuItemDisplay xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+  <Name>RSMItemSubstitution</Name>
+  <Object>RSMItemSubstitution</Object>
+  <ObjectType>Form</ObjectType>
+  <Label>Item substitutions</Label>
+  <HelpText>Define which items may be substituted for one another (rank, quantity ratio, direction, optional customer scope) for the Sales Proration Accelerator.</HelpText>
+  <Tags>RSM_SalesProration</Tags>
+</AxMenuItemDisplay>

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxMenuExtension xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+  <Name>ProductInformationManagement.RSM_SalesProration</Name>
+  <Elements>
+    <!-- Surfaces under Product information management > Setup -->
+    <AxMenuElement xmlns="" i:type="AxMenuElementMenuItem">
+      <Name>RSMItemSubstitution</Name>
+      <MenuItemName>RSMItemSubstitution</MenuItemName>
+      <MenuItemType>Display</MenuItemType>
+    </AxMenuElement>
+  </Elements>
+</AxMenuExtension>

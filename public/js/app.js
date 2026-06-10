@@ -223,6 +223,8 @@ function renderCustomerRows() {
 
 let DETAIL = null;       // loaded commodity payload
 let PRORATIONS = {};     // itemId -> /api/prorate response
+let SUBSTITUTIONS = [];  // staged subs: { salesId, lineNum, customerName,
+                         //   fromItemId, fromName, toItemId, toName, qty, verified }
 
 async function renderDetail() {
   try { await initShell({ active: 'plan' }); } catch (e) { console.error('[shell]', e); }
@@ -257,6 +259,7 @@ async function renderDetail() {
   `;
 
   PRORATIONS = {};
+  SUBSTITUTIONS = [];
   renderItems();
 
   document.getElementById('pp-strategy').addEventListener('change', e => {
@@ -268,10 +271,17 @@ async function renderDetail() {
   // Delegated handlers survive re-renders of #items.
   const items = document.getElementById('items');
   items.addEventListener('click', e => {
-    const btn = e.target.closest('button[data-prorate]');
-    if (btn) prorateItem(btn.dataset.prorate, btn);
+    const run = e.target.closest('button[data-prorate]');
+    if (run) { prorateItem(run.dataset.prorate, run); return; }
+    const sub = e.target.closest('button[data-sub-item]');
+    if (sub) openSubPicker(sub.dataset.subItem, sub.dataset.subKey);
   });
   items.addEventListener('input', onAllocEdit);
+
+  document.getElementById('subs').addEventListener('click', e => {
+    const rm = e.target.closest('button[data-unsub]');
+    if (rm) { SUBSTITUTIONS.splice(Number(rm.dataset.unsub), 1); renderItems(); }
+  });
 
   // Deep link: commodity.html?id=…&prorate=all runs the default strategy
   // across every item on load — handy for demos.
@@ -280,6 +290,7 @@ async function renderDetail() {
 
 function renderItems() {
   document.getElementById('items').innerHTML = DETAIL.items.map(itemCard).join('');
+  renderSubs();
   updateSummary();
 }
 
@@ -289,8 +300,9 @@ function itemCard(it) {
   const pr = PRORATIONS[it.itemId];
   const byKey = pr ? Object.fromEntries(pr.lines.map(l => [lineKey(l), l])) : {};
 
+  const canSub = DETAIL.items.length > 1;
   const extraHead = pr
-    ? `<th class="num">Allocated</th><th class="num">Fill %</th><th class="num">Weight</th>` : '';
+    ? `<th class="num">Allocated</th><th class="num">Fill %</th><th class="num">Weight</th>${canSub ? '<th></th>' : ''}` : '';
 
   const demandRows = it.demand.length
     ? it.demand.map(d => {
@@ -301,8 +313,9 @@ function itemCard(it) {
             <td class="num"><input type="number" class="alloc-input" min="0" max="${l.requestedQty}" step="1"
                  value="${l.allocatedQty}" data-item="${esc(it.itemId)}" data-key="${esc(lineKey(l))}" /></td>
             <td class="num fill-cell">${pct(l.requestedQty ? l.allocatedQty / l.requestedQty : 0)}</td>
-            <td class="num">${l.weightUsed.toFixed(2)}</td>`
-            : `<td class="num muted" colspan="3">—</td>`;
+            <td class="num">${l.weightUsed.toFixed(2)}</td>
+            ${canSub ? `<td><button class="ghost" data-sub-item="${esc(it.itemId)}" data-sub-key="${esc(lineKey(l))}">Sub…</button></td>` : ''}`
+            : `<td class="num muted" colspan="${canSub ? 4 : 3}">—</td>`;
         }
         return `
         <tr>
@@ -315,7 +328,7 @@ function itemCard(it) {
           ${extra}
         </tr>`;
       }).join('')
-    : `<tr><td colspan="${pr ? 9 : 6}" class="muted">No open demand.</td></tr>`;
+    : `<tr><td colspan="${pr ? (canSub ? 10 : 9) : 6}" class="muted">No open demand.</td></tr>`;
 
   const fill = it.totalDemand ? it.totalSupply / it.totalDemand : 1;
   return `
@@ -337,10 +350,26 @@ function itemCard(it) {
     </div>`;
 }
 
-/** Inventory still on the table for an item = available − sum(allocated). */
+/** Units of an item already promised away as a SUBSTITUTE on staged subs. */
+function subDrawn(itemId) {
+  return SUBSTITUTIONS.filter(s => s.toItemId === itemId)
+    .reduce((s, x) => s + (Number(x.qty) || 0), 0);
+}
+
+/** Inventory still on the table for an item = available − allocated − staged subs drawing on it. */
 function remainingFor(itemId) {
   const pr = PRORATIONS[itemId];
-  return pr.available - pr.lines.reduce((s, l) => s + (Number(l.allocatedQty) || 0), 0);
+  return pr.available
+    - pr.lines.reduce((s, l) => s + (Number(l.allocatedQty) || 0), 0)
+    - subDrawn(itemId);
+}
+
+/** Pool a substitute can draw from: prorated items use their live remaining;
+ *  unprorated items expose their full (uncommitted) supply minus staged subs. */
+function poolFor(item) {
+  return PRORATIONS[item.itemId]
+    ? remainingFor(item.itemId)
+    : item.totalSupply - subDrawn(item.itemId);
 }
 
 function remainingChip(itemId) {
@@ -350,6 +379,125 @@ function remainingChip(itemId) {
               : rem < 0 ? `${fmt(rem)} over-allocated`
               : 'fully allocated';
   return `<span class="chip ${cls}" data-rem="${esc(itemId)}" title="Available ${fmt(PRORATIONS[itemId].available)} − allocated">${label}</span>`;
+}
+
+// ---- Item substitution (Option 2: same buyer group + available inventory) ---
+//
+// Any line still short after proration gets a "Sub…" action. Candidates are
+// the other items in this buyer group with inventory left in their pool
+// (prorated items: live remaining; unprorated: uncommitted supply). When the
+// D365 feed starts sending RSMItemSubstitution rules, matching candidates
+// rank first and show "rule" — everything else is badged "unverified".
+
+function subRuleFor(fromItemId, toItemId, customerId) {
+  const rules = (DETAIL.substitutions || []).filter(r =>
+    (r.fromItemId === fromItemId && r.toItemId === toItemId) ||
+    (r.direction === 'Bidirectional' && r.fromItemId === toItemId && r.toItemId === fromItemId));
+  // customer-specific rule wins over a blank (all-customers) one
+  return rules.find(r => r.customerId === customerId) || rules.find(r => !r.customerId) || null;
+}
+
+function openSubPicker(itemId, key) {
+  const pr = PRORATIONS[itemId];
+  const line = pr?.lines.find(l => lineKey(l) === key);
+  if (!line) return;
+
+  const item = DETAIL.items.find(i => i.itemId === itemId);
+  const shortfall = Math.max(0, line.requestedQty - (Number(line.allocatedQty) || 0));
+
+  const candidates = DETAIL.items
+    .filter(x => x.itemId !== itemId)
+    .map(x => ({ item: x, pool: poolFor(x), rule: subRuleFor(itemId, x.itemId, line.customerId) }))
+    .filter(c => c.pool > 0)
+    .sort((a, b) => (b.rule ? 1 : 0) - (a.rule ? 1 : 0)
+      || (a.rule && b.rule ? a.rule.rank - b.rule.rank : 0)
+      || b.pool - a.pool);
+
+  const rows = candidates.length ? candidates.map((c, i) => {
+    const ratio = c.rule?.qtyRatio || 1;
+    const suggested = Math.max(1, Math.min(Math.ceil(shortfall * ratio), Math.floor(c.pool)));
+    const badge = c.rule
+      ? `<span class="chip OK">rule · rank ${esc(c.rule.rank)}${ratio !== 1 ? ` · ×${esc(ratio)}` : ''}</span>`
+      : `<span class="chip plain">unverified — no substitution rule</span>`;
+    return `
+      <div class="sub-row">
+        <div class="sub-row__main">
+          <div class="sub-row__name">${esc(c.item.name)} <span class="muted">${esc(c.item.itemId)}</span></div>
+          <div class="sub-row__meta">${fmt(c.pool)} available in pool · supply ${fmt(c.item.totalSupply)} ${PRORATIONS[c.item.itemId] ? '· prorated' : '· uncommitted'}</div>
+        </div>
+        ${badge}
+        <input type="number" min="1" max="${Math.floor(c.pool)}" step="1" value="${suggested}" data-sub-qty="${i}" />
+        <button class="primary" data-sub-use="${i}">Use</button>
+      </div>`;
+  }).join('')
+    : `<p class="muted">No other items in this buyer group have available inventory.</p>`;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'overlay';
+  overlay.innerHTML = `
+    <div class="overlay__card">
+      <h3>Substitute for ${esc(item.name)}</h3>
+      <div class="overlay__sub">
+        ${esc(line.salesId)} / ${esc(line.lineNum)} · ${esc(line.customerName || line.customerId)} ·
+        short <strong>${fmt(shortfall)}</strong> of ${fmt(line.requestedQty)} requested
+      </div>
+      ${rows}
+      <div class="row" style="margin:1.1rem 0 0">
+        <button data-sub-cancel>Cancel</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  const close = () => overlay.remove();
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay || e.target.closest('[data-sub-cancel]')) { close(); return; }
+    const use = e.target.closest('button[data-sub-use]');
+    if (!use) return;
+    const c = candidates[Number(use.dataset.subUse)];
+    const qtyInput = overlay.querySelector(`input[data-sub-qty="${use.dataset.subUse}"]`);
+    let qty = Number(qtyInput.value);
+    if (!Number.isFinite(qty) || qty <= 0) return;
+    qty = Math.min(qty, Math.floor(c.pool));
+    SUBSTITUTIONS.push({
+      salesId: line.salesId, lineNum: line.lineNum,
+      customerName: line.customerName || line.customerId,
+      fromItemId: itemId, fromName: item.name,
+      toItemId: c.item.itemId, toName: c.item.name,
+      qty, verified: !!c.rule,
+    });
+    close();
+    renderItems();
+  });
+}
+
+function renderSubs() {
+  const el = document.getElementById('subs');
+  if (!el) return;
+  if (!SUBSTITUTIONS.length) { el.innerHTML = ''; return; }
+  el.innerHTML = `
+    <div class="item-card">
+      <header>
+        <div>
+          <h3>Staged substitutions</h3>
+          <div class="meta">Sent as a separate <code>rsmSalesSubstituteAcceleratorMessage</code> batch on approval.</div>
+        </div>
+      </header>
+      <table class="grid">
+        <thead><tr><th>SO / Line</th><th>Customer</th><th>Original</th><th>Substitute</th><th class="num">Qty</th><th>Rule</th><th></th></tr></thead>
+        <tbody>
+          ${SUBSTITUTIONS.map((s, i) => `
+            <tr>
+              <td>${esc(s.salesId)} / ${esc(s.lineNum)}</td>
+              <td>${esc(s.customerName)}</td>
+              <td>${esc(s.fromName)} <span class="muted">${esc(s.fromItemId)}</span></td>
+              <td>${esc(s.toName)} <span class="muted">${esc(s.toItemId)}</span></td>
+              <td class="num">${fmt(s.qty)}</td>
+              <td>${s.verified ? '<span class="chip OK">rule</span>' : '<span class="chip plain">unverified</span>'}</td>
+              <td><button class="ghost" data-unsub="${i}">Remove</button></td>
+            </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
 }
 
 function currentStrategy() {
@@ -423,13 +571,16 @@ function updateSummary() {
   const requested = prorated.reduce((s, p) => s + p.totalRequested, 0);
 
   const summary = document.getElementById('pp-summary');
+  const subNote = SUBSTITUTIONS.length ? ` · ${SUBSTITUTIONS.length} substitution(s) staged` : '';
   summary.textContent = prorated.length
-    ? `${prorated.length} of ${DETAIL.items.length} items prorated · ${fmt(allocated)} of ${fmt(requested)} allocated`
+    ? `${prorated.length} of ${DETAIL.items.length} items prorated · ${fmt(allocated)} of ${fmt(requested)} allocated${subNote}`
     : '';
 
   const approve = document.getElementById('pp-approve');
-  approve.classList.toggle('hidden', lines.length === 0);
-  approve.textContent = lines.length ? `Approve & Send ${lines.length} line(s) to D365` : 'Approve & Send to D365';
+  const nothing = lines.length === 0 && SUBSTITUTIONS.length === 0;
+  approve.classList.toggle('hidden', nothing);
+  approve.textContent = nothing ? 'Approve & Send to D365'
+    : `Approve & Send ${lines.length} line(s)${SUBSTITUTIONS.length ? ` + ${SUBSTITUTIONS.length} sub(s)` : ''} to D365`;
 }
 
 async function approveBatch() {
@@ -438,21 +589,45 @@ async function approveBatch() {
     .filter(l => Number(l.allocatedQty) > 0)
     .map(l => ({ salesId: l.salesId, lineNum: l.lineNum, itemId: l.itemId, allocatedQty: l.allocatedQty }));
 
-  if (lines.length === 0) { alert('Nothing to send — no line has an allocated quantity.'); return; }
+  // remainingOriginalQty is computed at SEND time from the line's current
+  // allocation, so later edits to allocations stay consistent with the sub.
+  const subs = SUBSTITUTIONS.map(s => {
+    const line = PRORATIONS[s.fromItemId]?.lines.find(l => lineKey(l) === `${s.salesId}:${s.lineNum}`);
+    return {
+      salesId: s.salesId, lineNum: s.lineNum,
+      fromItemId: s.fromItemId, toItemId: s.toItemId,
+      qty: s.qty,
+      remainingOriginalQty: Number(line?.allocatedQty) || 0,
+    };
+  });
+
+  if (lines.length === 0 && subs.length === 0) { alert('Nothing to send.'); return; }
 
   // Warn (but allow) sending while an item is over-allocated.
   const over = Object.keys(PRORATIONS).filter(id => remainingFor(id) < 0);
   if (over.length && !confirm(
     `${over.length} item(s) are over-allocated (red). Send anyway?`)) return;
 
+  const unverified = SUBSTITUTIONS.filter(s => !s.verified).length;
+  if (unverified && !confirm(
+    `${unverified} substitution(s) have no whitelist rule (unverified) — D365 will reject them unless a rule exists. Send anyway?`)) return;
+
   const btn = document.getElementById('pp-approve');
   btn.disabled = true;
   const original = btn.textContent;
-  btn.textContent = `Sending batch (${lines.length} lines)…`;
+  btn.textContent = 'Sending…';
 
   try {
-    const r = await jpost('/api/prorate/send', { lines });
-    alert(`Sent batch ${String(r.batchId).slice(0, 8)} (${r.recordCount} line(s)) to D365 message queue 'rsmSalesProrateAccelerator'.`);
+    const sent = [];
+    if (lines.length) {
+      const r = await jpost('/api/prorate/send', { lines });
+      sent.push(`proration ${String(r.batchId).slice(0, 8)} (${r.recordCount} lines)`);
+    }
+    if (subs.length) {
+      const r = await jpost('/api/substitute/send', { substitutions: subs });
+      sent.push(`substitution ${String(r.batchId).slice(0, 8)} (${r.recordCount} subs)`);
+    }
+    alert(`Sent to D365 queue 'rsmSalesProrateAccelerator':\n  ${sent.join('\n  ')}`);
     location.href = 'index.html';
   } catch (err) {
     alert(`Send failed: ${err.message}`);

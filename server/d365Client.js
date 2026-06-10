@@ -155,10 +155,22 @@ function normalizeSnapshot(raw) {
     availableQty: num(pick(s, 'availableQty', 'AvailableQty')),
   }));
 
+  // Item substitution whitelist (RSMItemSubstitution rows). Optional — the
+  // feed doesn't send these yet; the UI treats candidates without a rule as
+  // "unverified" until it does.
+  const substitutions = asArray(get(raw, 'substitutions')).map(s => ({
+    fromItemId: pick(s, 'fromItemId', 'FromItemId'),
+    toItemId:   pick(s, 'toItemId', 'ToItemId'),
+    direction:  String(pick(s, 'direction', 'Direction') ?? 'OneWay'),
+    rank:       num(pick(s, 'rank', 'Rank'), 1),
+    qtyRatio:   num(pick(s, 'qtyRatio', 'QtyRatio'), 1) || 1,
+    customerId: String(pick(s, 'custAccount', 'CustAccount', 'customerId') ?? ''),
+  }));
+
   // The SPA feed has no fill-rate history; History-Aware degrades to Weighted.
   const customerFillHistory = {};
 
-  return { commodities, items, customers, demand, supply, customerFillHistory };
+  return { commodities, items, customers, demand, supply, substitutions, customerFillHistory };
 }
 
 /**
@@ -248,9 +260,12 @@ async function testConnection() {
 //       { "SalesOrderNumber": "000751", "SalesLineNumber": 1,
 //         "ItemId": "A0001", "DeliveryReminder": 5 }, … ] }
 
-const SEND_MESSAGE_PATH = '/api/services/SysMessageServices/SysMessageService/SendMessage';
-const MESSAGE_QUEUE     = 'rsmSalesProrateAccelerator';
-const MESSAGE_TYPE      = 'rsmSalesProrateAcceleratorMessage';
+const SEND_MESSAGE_PATH  = '/api/services/SysMessageServices/SysMessageService/SendMessage';
+const MESSAGE_QUEUE      = 'rsmSalesProrateAccelerator';
+const MESSAGE_TYPE       = 'rsmSalesProrateAcceleratorMessage';
+// Substitutions are a different business event -> different message type
+// (own contract + consumer in D365), same queue.
+const SUB_MESSAGE_TYPE   = 'rsmSalesSubstituteAcceleratorMessage';
 
 /** Build the SendMessage envelope for one batch of allocated lines. */
 function buildBatchMessage(lines, company, batchId) {
@@ -271,31 +286,40 @@ function buildBatchMessage(lines, company, batchId) {
   };
 }
 
-/**
- * POST one SysMessageService.SendMessage carrying the whole batch. Lines with
- * allocatedQty <= 0 are dropped from Records (nothing to apply). Returns
- * { ok, batchId, recordCount, skipped, … } — `error` is set when ok is false.
- */
-async function sendProrationBatch(lines, { company: companyOverride, batchId } = {}) {
-  assertConfigured();
-  const c = getActiveConfig();
+/** Build the SendMessage envelope for one batch of staged substitutions. */
+function buildSubstitutionMessage(subs, company, batchId) {
+  const content = {
+    BatchId: batchId,
+    Records: asArray(subs).map(s => ({
+      SalesOrderNumber:     String(s.salesId),
+      SalesLineNumber:      num(s.lineNum, 0),
+      OriginalItemId:       s.fromItemId,
+      SubstituteItemId:     s.toItemId,
+      SubstituteQty:        num(s.qty, 0),
+      RemainingOriginalQty: num(s.remainingOriginalQty, 0),
+    })),
+  };
+  return {
+    _companyId:      company,
+    _messageQueue:   MESSAGE_QUEUE,
+    _messageType:    SUB_MESSAGE_TYPE,
+    _messageContent: JSON.stringify(content),
+  };
+}
+
+function resolveCompany(c, companyOverride) {
   const company = (companyOverride || c.company || '').trim();
   if (!company) {
     throw new D365Error('No company (legal entity) set on the active environment. Add it on the Setup page.',
       { status: 503 });
   }
+  return company;
+}
 
-  const records = asArray(lines).filter(l => num(l.allocatedQty) > 0);
-  const skipped = asArray(lines).length - records.length;
-  if (records.length === 0) {
-    throw new D365Error('No lines with an allocated quantity > 0 to send.', { status: 400 });
-  }
-
-  const id = batchId || crypto.randomUUID();
+/** Shared SysMessageService POST + result shaping for both message types. */
+async function postQueueMessage(c, message, base) {
   const token = await getToken(c);
   const url = `${c.baseUrl}${SEND_MESSAGE_PATH}`;
-  const message = buildBatchMessage(records, company, id);
-  const base = { batchId: id, url, company, recordCount: records.length, skipped };
 
   let res;
   try {
@@ -310,7 +334,7 @@ async function sendProrationBatch(lines, { company: companyOverride, batchId } =
       signal: AbortSignal.timeout(c.timeoutMs),
     });
   } catch (err) {
-    return { ok: false, ...base, error: err.message };
+    return { ok: false, ...base, url, error: err.message };
   }
 
   const text = await res.text();
@@ -319,9 +343,54 @@ async function sendProrationBatch(lines, { company: companyOverride, batchId } =
     if (res.status === 401) tokenCache = { key: null, value: null, expiresAt: 0 };
     const detail = (body && (body.error?.message || body.Message || body.message)) ||
       (typeof body === 'string' ? body.slice(0, 300) : JSON.stringify(body)?.slice(0, 300));
-    return { ok: false, ...base, status: res.status, error: detail };
+    return { ok: false, ...base, url, status: res.status, error: detail };
   }
-  return { ok: true, ...base, status: res.status, response: body };
+  return { ok: true, ...base, url, status: res.status, response: body };
 }
 
-module.exports = { D365Error, getSnapshot, testConnection, sendProrationBatch, buildBatchMessage };
+/**
+ * POST one SysMessageService.SendMessage carrying the whole proration batch.
+ * Lines with allocatedQty <= 0 are dropped from Records (nothing to apply).
+ * Returns { ok, batchId, recordCount, skipped, … } — `error` set when not ok.
+ */
+async function sendProrationBatch(lines, { company: companyOverride, batchId } = {}) {
+  assertConfigured();
+  const c = getActiveConfig();
+  const company = resolveCompany(c, companyOverride);
+
+  const records = asArray(lines).filter(l => num(l.allocatedQty) > 0);
+  const skipped = asArray(lines).length - records.length;
+  if (records.length === 0) {
+    throw new D365Error('No lines with an allocated quantity > 0 to send.', { status: 400 });
+  }
+
+  const id = batchId || crypto.randomUUID();
+  return postQueueMessage(c, buildBatchMessage(records, company, id),
+    { batchId: id, messageType: MESSAGE_TYPE, company, recordCount: records.length, skipped });
+}
+
+/**
+ * POST one SysMessageService.SendMessage carrying staged substitutions
+ * (message type rsmSalesSubstituteAcceleratorMessage).
+ * subs: [{ salesId, lineNum, fromItemId, toItemId, qty, remainingOriginalQty }]
+ */
+async function sendSubstitutionBatch(subs, { company: companyOverride, batchId } = {}) {
+  assertConfigured();
+  const c = getActiveConfig();
+  const company = resolveCompany(c, companyOverride);
+
+  const records = asArray(subs).filter(s => num(s.qty) > 0 && s.fromItemId && s.toItemId);
+  if (records.length === 0) {
+    throw new D365Error('No substitutions with a quantity > 0 to send.', { status: 400 });
+  }
+
+  const id = batchId || crypto.randomUUID();
+  return postQueueMessage(c, buildSubstitutionMessage(records, company, id),
+    { batchId: id, messageType: SUB_MESSAGE_TYPE, company, recordCount: records.length, skipped: 0 });
+}
+
+module.exports = {
+  D365Error, getSnapshot, testConnection,
+  sendProrationBatch, buildBatchMessage,
+  sendSubstitutionBatch, buildSubstitutionMessage,
+};

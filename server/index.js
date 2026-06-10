@@ -121,6 +121,13 @@ app.post('/api/prorate/send', route(async (req, res) => {
   res.status(result.ok ? 202 : 502).json(result);
 }));
 
+// Staged item substitutions — separate message type
+// (rsmSalesSubstituteAcceleratorMessage), same queue, own D365 consumer.
+app.post('/api/substitute/send', route(async (req, res) => {
+  const result = await portal.sendSubstitutions((req.body || {}).substitutions);
+  res.status(result.ok ? 202 : 502).json(result);
+}));
+
 // ---- Branding (white-label: logo, name, colors, skin) -----------------------
 
 app.get('/api/branding', (req, res) => res.json(branding.get()));

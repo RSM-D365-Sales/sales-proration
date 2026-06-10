@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxEdt xmlns:i="http://www.w3.org/2001/XMLSchema-instance" i:type="AxEdtInt">
+  <Name>RSMSubstitutionRank</Name>
+  <Label>Rank</Label>
+  <Help>Preference order when more than one substitute exists. 1 is tried first.</Help>
+  <Tags>RSM_SalesProration</Tags>
+</AxEdt>

@@ -8,7 +8,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const { prorate, PRIORITY_WEIGHTS } = require('../server/proration');
-const { buildBatchMessage } = require('../server/d365Client');
+const { buildBatchMessage, buildSubstitutionMessage } = require('../server/d365Client');
 
 function line(salesId, customerId, requestedQty, extra = {}) {
   return { key: `${salesId}:1`, salesId, lineNum: 1, customerId, requestedQty, ...extra };
@@ -174,6 +174,28 @@ test('buildBatchMessage: one envelope per batch — BatchId head + Records array
       { SalesOrderNumber: '000751', SalesLineNumber: 1, ItemId: 'A0001', DeliveryReminder: 5 },
       { SalesOrderNumber: '000811', SalesLineNumber: 3, ItemId: 'A0001', DeliveryReminder: 2370 },
     ],
+  });
+});
+
+test('buildSubstitutionMessage: own message type, sub-specific record shape', () => {
+  const msg = buildSubstitutionMessage(
+    [{ salesId: '000697', lineNum: 1, fromItemId: 'D0001', toItemId: 'A0001', qty: 40, remainingOriginalQty: 5 }],
+    'USMF',
+    '8c1d2f30-aaaa-bbbb-cccc-001122334455',
+  );
+  assert.equal(msg._messageQueue, 'rsmSalesProrateAccelerator', 'same queue as proration');
+  assert.equal(msg._messageType, 'rsmSalesSubstituteAcceleratorMessage', 'but a different message type');
+
+  assert.deepEqual(JSON.parse(msg._messageContent), {
+    BatchId: '8c1d2f30-aaaa-bbbb-cccc-001122334455',
+    Records: [{
+      SalesOrderNumber: '000697',
+      SalesLineNumber: 1,
+      OriginalItemId: 'D0001',
+      SubstituteItemId: 'A0001',
+      SubstituteQty: 40,
+      RemainingOriginalQty: 5,
+    }],
   });
 });
 

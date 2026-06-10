@@ -1,0 +1,58 @@
+// File: RSMProrationSubstitutionService.xpp
+// Model:  RSM_SalesProration
+// Purpose: Read service exposing the RSMItemSubstitution whitelist to the
+//          external proration app.
+//
+// Wire-up options (either works; the web app tolerates both):
+//   a) Preferred — add a `substitutions` collection to the snapshot payload
+//      returned by SPASalesOrderService.GetOpenSalesOrders, so the app gets
+//      rules in the same single call as demand/supply/customers.
+//   b) Standalone — register this service in RSMProrationReadSvcGrp and let
+//      the app call it separately.
+
+public class RSMProrationSubstitutionService
+{
+    /// <summary>
+    /// All active substitution rules, optionally scoped to one commodity
+    /// (returns rules where either side belongs to the commodity).
+    /// </summary>
+    [SysEntryPointAttribute]
+    public List getSubstitutions(str _commodityId = '')
+    {
+        List                result = new List(Types::Class);
+        RSMItemSubstitution sub;
+        TransDate           today  = systemDateGet();
+
+        while select sub
+            order by sub.FromItemId, sub.Rank
+            where (!sub.ValidFrom || sub.ValidFrom <= today)
+               && (!sub.ValidTo   || sub.ValidTo   >= today)
+        {
+            if (_commodityId
+                && !RSMProrationSubstitutionService::itemInCommodity(sub.FromItemId, _commodityId)
+                && !RSMProrationSubstitutionService::itemInCommodity(sub.ToItemId,   _commodityId))
+            {
+                continue;
+            }
+
+            RSMProrationSubstitutionContract c = new RSMProrationSubstitutionContract();
+            c.parmFromItemId(sub.FromItemId);
+            c.parmToItemId(sub.ToItemId);
+            c.parmDirection(enum2Symbol(enumNum(RSMSubstitutionDirection), sub.Direction));
+            c.parmRank(sub.Rank);
+            c.parmQtyRatio(sub.QtyRatio ? sub.QtyRatio : 1.0);
+            c.parmCustAccount(sub.CustAccount);
+            result.addEnd(c);
+        }
+        return result;
+    }
+
+    private static boolean itemInCommodity(ItemId _itemId, str _commodityId)
+    {
+        // EcoResProduct.RSMCommodityId carries the buyer-group/commodity link
+        // (see the extension list in README.md).
+        InventTable inventTable = InventTable::find(_itemId);
+        return inventTable
+            && EcoResProduct::find(inventTable.Product).RSMCommodityId == _commodityId;
+    }
+}

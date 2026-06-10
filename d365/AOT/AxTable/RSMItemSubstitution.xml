@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxTable xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+  <Name>RSMItemSubstitution</Name>
+  <SourceCode>
+    <Declaration><![CDATA[
+/// <summary>
+/// Whitelist of allowed item substitutions for the Sales Proration Accelerator.
+/// A row says: when FromItemId is short, ToItemId may be offered instead —
+/// optionally only for one customer (CustAccount blank = all customers),
+/// converted by QtyRatio, within ValidFrom/ValidTo.
+/// </summary>
+public class RSMItemSubstitution extends common
+{
+}
+]]></Declaration>
+    <Methods>
+      <Method>
+        <Name>findActive</Name>
+        <Source><![CDATA[
+/// <summary>Active rule for an exact (from, to, customer) triple; customer-specific wins over blank.</summary>
+public static RSMItemSubstitution findActive(
+    ItemId      _fromItemId,
+    ItemId      _toItemId,
+    CustAccount _custAccount = '',
+    TransDate   _asOf        = systemDateGet())
+{
+    RSMItemSubstitution sub;
+
+    select firstonly sub
+        where sub.FromItemId  == _fromItemId
+           && sub.ToItemId    == _toItemId
+           && (sub.CustAccount == _custAccount || sub.CustAccount == '')
+           && (!sub.ValidFrom || sub.ValidFrom <= _asOf)
+           && (!sub.ValidTo   || sub.ValidTo   >= _asOf);
+
+    return sub;
+}
+]]></Source>
+      </Method>
+      <Method>
+        <Name>activeSubstitutesFor</Name>
+        <Source><![CDATA[
+/// <summary>
+/// All active substitutes for an item (ranked). Includes Bidirectional rows
+/// where the item appears on the To side.
+/// </summary>
+public static List activeSubstitutesFor(
+    ItemId      _itemId,
+    CustAccount _custAccount = '',
+    TransDate   _asOf        = systemDateGet())
+{
+    List                result = new List(Types::Record);
+    RSMItemSubstitution sub;
+
+    while select sub
+        order by sub.Rank asc
+        where (sub.FromItemId == _itemId
+           || (sub.ToItemId   == _itemId && sub.Direction == RSMSubstitutionDirection::Bidirectional))
+           && (sub.CustAccount == _custAccount || sub.CustAccount == '')
+           && (!sub.ValidFrom || sub.ValidFrom <= _asOf)
+           && (!sub.ValidTo   || sub.ValidTo   >= _asOf)
+    {
+        result.addEnd(sub);
+    }
+    return result;
+}
+]]></Source>
+      </Method>
+      <Method>
+        <Name>validateWrite</Name>
+        <Source><![CDATA[
+public boolean validateWrite()
+{
+    boolean ok = super();
+
+    if (this.FromItemId == this.ToItemId)
+    {
+        ok = checkFailed("@SYS9039"); // An item cannot substitute itself.
+    }
+    if (this.QtyRatio <= 0)
+    {
+        this.QtyRatio = 1.0;
+    }
+    if (this.ValidFrom && this.ValidTo && this.ValidFrom > this.ValidTo)
+    {
+        ok = checkFailed("@SYS72396"); // From date is after To date.
+    }
+    return ok;
+}
+]]></Source>
+      </Method>
+    </Methods>
+  </SourceCode>
+  <Label>Item substitutions</Label>
+  <DeveloperDocumentation>RSM Sales Proration — allowed item substitutions (whitelist, ratio, direction, optional customer scope).</DeveloperDocumentation>
+  <FormRef>RSMItemSubstitution</FormRef>
+  <TableGroup>Group</TableGroup>
+  <CacheLookup>Found</CacheLookup>
+  <CreatedDateTime>Yes</CreatedDateTime>
+  <ModifiedBy>Yes</ModifiedBy>
+  <ModifiedDateTime>Yes</ModifiedDateTime>
+  <Tags>RSM_SalesProration</Tags>
+  <DeleteActions />
+  <FieldGroups>
+    <AxTableFieldGroup>
+      <Name>Overview</Name>
+      <Label>Overview</Label>
+      <Fields>
+        <AxTableFieldGroupField><DataField>FromItemId</DataField></AxTableFieldGroupField>
+        <AxTableFieldGroupField><DataField>ToItemId</DataField></AxTableFieldGroupField>
+        <AxTableFieldGroupField><DataField>Direction</DataField></AxTableFieldGroupField>
+        <AxTableFieldGroupField><DataField>Rank</DataField></AxTableFieldGroupField>
+        <AxTableFieldGroupField><DataField>QtyRatio</DataField></AxTableFieldGroupField>
+        <AxTableFieldGroupField><DataField>CustAccount</DataField></AxTableFieldGroupField>
+        <AxTableFieldGroupField><DataField>ValidFrom</DataField></AxTableFieldGroupField>
+        <AxTableFieldGroupField><DataField>ValidTo</DataField></AxTableFieldGroupField>
+      </Fields>
+    </AxTableFieldGroup>
+  </FieldGroups>
+  <Fields>
+    <AxTableField xmlns="" i:type="AxTableFieldString">
+      <Name>FromItemId</Name>
+      <ExtendedDataType>ItemId</ExtendedDataType>
+      <Label>Original item</Label>
+      <HelpText>The item that is short and may be substituted.</HelpText>
+      <Mandatory>Yes</Mandatory>
+    </AxTableField>
+    <AxTableField xmlns="" i:type="AxTableFieldString">
+      <Name>ToItemId</Name>
+      <ExtendedDataType>ItemId</ExtendedDataType>
+      <Label>Substitute item</Label>
+      <HelpText>The item that may be offered in place of the original.</HelpText>
+      <Mandatory>Yes</Mandatory>
+    </AxTableField>
+    <AxTableField xmlns="" i:type="AxTableFieldEnum">
+      <Name>Direction</Name>
+      <EnumType>RSMSubstitutionDirection</EnumType>
+      <Label>Direction</Label>
+    </AxTableField>
+    <AxTableField xmlns="" i:type="AxTableFieldInt">
+      <Name>Rank</Name>
+      <ExtendedDataType>RSMSubstitutionRank</ExtendedDataType>
+    </AxTableField>
+    <AxTableField xmlns="" i:type="AxTableFieldReal">
+      <Name>QtyRatio</Name>
+      <ExtendedDataType>RSMSubstitutionQtyRatio</ExtendedDataType>
+    </AxTableField>
+    <AxTableField xmlns="" i:type="AxTableFieldString">
+      <Name>CustAccount</Name>
+      <ExtendedDataType>CustAccount</ExtendedDataType>
+      <Label>Customer</Label>
+      <HelpText>Blank = rule applies to all customers. Set to scope the substitution to one customer's spec.</HelpText>
+    </AxTableField>
+    <AxTableField xmlns="" i:type="AxTableFieldDate">
+      <Name>ValidFrom</Name>
+      <ExtendedDataType>TransDate</ExtendedDataType>
+      <Label>Valid from</Label>
+    </AxTableField>
+    <AxTableField xmlns="" i:type="AxTableFieldDate">
+      <Name>ValidTo</Name>
+      <ExtendedDataType>TransDate</ExtendedDataType>
+      <Label>Valid to</Label>
+    </AxTableField>
+  </Fields>
+  <FullTextIndexes />
+  <Indexes>
+    <AxTableIndex>
+      <Name>SubstitutionIdx</Name>
+      <AllowDuplicates>No</AllowDuplicates>
+      <Fields>
+        <AxTableIndexField><DataField>FromItemId</DataField></AxTableIndexField>
+        <AxTableIndexField><DataField>ToItemId</DataField></AxTableIndexField>
+        <AxTableIndexField><DataField>CustAccount</DataField></AxTableIndexField>
+      </Fields>
+    </AxTableIndex>
+    <AxTableIndex>
+      <Name>FromItemIdx</Name>
+      <AllowDuplicates>Yes</AllowDuplicates>
+      <Fields>
+        <AxTableIndexField><DataField>FromItemId</DataField></AxTableIndexField>
+        <AxTableIndexField><DataField>Rank</DataField></AxTableIndexField>
+      </Fields>
+    </AxTableIndex>
+  </Indexes>
+  <Mappings />
+  <Relations>
+    <AxTableRelation>
+      <Name>InventTableFrom</Name>
+      <RelatedTable>InventTable</RelatedTable>
+      <Constraints>
+        <AxTableRelationConstraint xmlns="" i:type="AxTableRelationConstraintField">
+          <Name>FromItemId</Name>
+          <Field>FromItemId</Field>
+          <RelatedField>ItemId</RelatedField>
+        </AxTableRelationConstraint>
+      </Constraints>
+    </AxTableRelation>
+    <AxTableRelation>
+      <Name>InventTableTo</Name>
+      <RelatedTable>InventTable</RelatedTable>
+      <Constraints>
+        <AxTableRelationConstraint xmlns="" i:type="AxTableRelationConstraintField">
+          <Name>ToItemId</Name>
+          <Field>ToItemId</Field>
+          <RelatedField>ItemId</RelatedField>
+        </AxTableRelationConstraint>
+      </Constraints>
+    </AxTableRelation>
+    <AxTableRelation>
+      <Name>CustTable</Name>
+      <RelatedTable>CustTable</RelatedTable>
+      <Constraints>
+        <AxTableRelationConstraint xmlns="" i:type="AxTableRelationConstraintField">
+          <Name>CustAccount</Name>
+          <Field>CustAccount</Field>
+          <RelatedField>AccountNum</RelatedField>
+        </AxTableRelationConstraint>
+      </Constraints>
+    </AxTableRelation>
+  </Relations>
+</AxTable>

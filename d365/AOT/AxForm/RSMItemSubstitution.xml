@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxForm xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+  <Name>RSMItemSubstitution</Name>
+  <SourceCode>
+    <Methods>
+      <Method>
+        <Name>classDeclaration</Name>
+        <Source><![CDATA[
+[Form]
+public class RSMItemSubstitution extends FormRun
+{
+}
+]]></Source>
+      </Method>
+    </Methods>
+    <DataSources />
+    <DataControls />
+    <Members />
+  </SourceCode>
+  <DataSources>
+    <AxFormDataSource>
+      <Name>RSMItemSubstitution</Name>
+      <Table>RSMItemSubstitution</Table>
+      <Fields />
+      <ReferencedDataSources />
+      <AllowCreate>Yes</AllowCreate>
+      <AllowDelete>Yes</AllowDelete>
+      <AllowEdit>Yes</AllowEdit>
+      <InsertAtEnd>No</InsertAtEnd>
+      <InsertIfEmpty>No</InsertIfEmpty>
+      <DataSourceLinks />
+      <DerivedDataSources />
+    </AxFormDataSource>
+  </DataSources>
+  <Design>
+    <Caption>Item substitutions</Caption>
+    <Pattern>SimpleList</Pattern>
+    <PatternVersion>1.1</PatternVersion>
+    <ShowDeleteButton>Yes</ShowDeleteButton>
+    <ShowNewButton>Yes</ShowNewButton>
+    <Style>SimpleList</Style>
+    <Controls>
+      <AxFormControl xmlns="" i:type="AxFormActionPaneControl">
+        <Name>ActionPane</Name>
+        <Type>ActionPane</Type>
+        <Controls />
+      </AxFormControl>
+      <AxFormControl xmlns="" i:type="AxFormGroupControl">
+        <Name>CustomFilterGroup</Name>
+        <Type>Group</Type>
+        <Pattern>CustomAndQuickFilters</Pattern>
+        <PatternVersion>1.1</PatternVersion>
+        <Controls>
+          <AxFormControl xmlns="" i:type="AxFormControl">
+            <Name>QuickFilter</Name>
+            <FormControlExtension>
+              <Name>QuickFilterControl</Name>
+              <ExtensionComponents />
+              <ExtensionProperties>
+                <AxFormControlExtensionProperty>
+                  <Name>targetControlName</Name>
+                  <Type>String</Type>
+                  <Value>Grid</Value>
+                </AxFormControlExtensionProperty>
+                <AxFormControlExtensionProperty>
+                  <Name>defaultColumnName</Name>
+                  <Type>String</Type>
+                  <Value>Grid_FromItemId</Value>
+                </AxFormControlExtensionProperty>
+              </ExtensionProperties>
+            </FormControlExtension>
+          </AxFormControl>
+        </Controls>
+        <ArrangeMethod>HorizontalLeft</ArrangeMethod>
+        <FrameType>None</FrameType>
+      </AxFormControl>
+      <AxFormControl xmlns="" i:type="AxFormGridControl">
+        <Name>Grid</Name>
+        <Type>Grid</Type>
+        <DataSource>RSMItemSubstitution</DataSource>
+        <Controls>
+          <AxFormControl xmlns="" i:type="AxFormStringControl">
+            <Name>Grid_FromItemId</Name>
+            <Type>String</Type>
+            <DataField>FromItemId</DataField>
+            <DataSource>RSMItemSubstitution</DataSource>
+          </AxFormControl>
+          <AxFormControl xmlns="" i:type="AxFormStringControl">
+            <Name>Grid_ToItemId</Name>
+            <Type>String</Type>
+            <DataField>ToItemId</DataField>
+            <DataSource>RSMItemSubstitution</DataSource>
+          </AxFormControl>
+          <AxFormControl xmlns="" i:type="AxFormComboBoxControl">
+            <Name>Grid_Direction</Name>
+            <Type>ComboBox</Type>
+            <DataField>Direction</DataField>
+            <DataSource>RSMItemSubstitution</DataSource>
+          </AxFormControl>
+          <AxFormControl xmlns="" i:type="AxFormIntegerControl">
+            <Name>Grid_Rank</Name>
+            <Type>Integer</Type>
+            <DataField>Rank</DataField>
+            <DataSource>RSMItemSubstitution</DataSource>
+          </AxFormControl>
+          <AxFormControl xmlns="" i:type="AxFormRealControl">
+            <Name>Grid_QtyRatio</Name>
+            <Type>Real</Type>
+            <DataField>QtyRatio</DataField>
+            <DataSource>RSMItemSubstitution</DataSource>
+          </AxFormControl>
+          <AxFormControl xmlns="" i:type="AxFormStringControl">
+            <Name>Grid_CustAccount</Name>
+            <Type>String</Type>
+            <DataField>CustAccount</DataField>
+            <DataSource>RSMItemSubstitution</DataSource>
+          </AxFormControl>
+          <AxFormControl xmlns="" i:type="AxFormDateControl">
+            <Name>Grid_ValidFrom</Name>
+            <Type>Date</Type>
+            <DataField>ValidFrom</DataField>
+            <DataSource>RSMItemSubstitution</DataSource>
+          </AxFormControl>
+          <AxFormControl xmlns="" i:type="AxFormDateControl">
+            <Name>Grid_ValidTo</Name>
+            <Type>Date</Type>
+            <DataField>ValidTo</DataField>
+            <DataSource>RSMItemSubstitution</DataSource>
+          </AxFormControl>
+        </Controls>
+        <DataGroup />
+        <DefaultAction />
+        <Style>Tabular</Style>
+      </AxFormControl>
+    </Controls>
+  </Design>
+  <Parts />
+</AxForm>

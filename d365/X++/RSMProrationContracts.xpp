@@ -92,6 +92,28 @@ public class RSMProrationCustomerContract
 }
 
 // -----------------------------------------------------------------------------
+// Read: item substitution rule (RSMItemSubstitution whitelist row)
+// Exposed via RSMProrationSubstitutionService.getSubstitutions, or embedded
+// as a `substitutions` collection in the snapshot payload.
+// -----------------------------------------------------------------------------
+[DataContractAttribute]
+public class RSMProrationSubstitutionContract
+{
+    str     fromItemId; str toItemId;
+    str     direction;          // OneWay | Bidirectional
+    int     rank;
+    decimal qtyRatio;           // substitute units per 1 original unit
+    str     custAccount;        // blank = all customers
+
+    [DataMemberAttribute] public str     parmFromItemId (str _v = fromItemId)  { fromItemId = _v; return fromItemId; }
+    [DataMemberAttribute] public str     parmToItemId   (str _v = toItemId)    { toItemId = _v; return toItemId; }
+    [DataMemberAttribute] public str     parmDirection  (str _v = direction)   { direction = _v; return direction; }
+    [DataMemberAttribute] public int     parmRank       (int _v = rank)        { rank = _v; return rank; }
+    [DataMemberAttribute] public decimal parmQtyRatio   (decimal _v = qtyRatio){ qtyRatio = _v; return qtyRatio; }
+    [DataMemberAttribute] public str     parmCustAccount(str _v = custAccount) { custAccount = _v; return custAccount; }
+}
+
+// -----------------------------------------------------------------------------
 // Inbound: proration batch message (app -> SysMessageService -> processor)
 //
 // One SysMessageService message per approved batch. The head record carries
@@ -140,4 +162,64 @@ public class RSMProrationBatchRecordContract
 
     [DataMemberAttribute('DeliveryReminder')]
     public decimal parmDeliveryReminder(decimal _v = deliveryReminder) { deliveryReminder = _v; return deliveryReminder; }
+}
+
+// -----------------------------------------------------------------------------
+// Inbound: substitution batch message (app -> SysMessageService -> processor)
+//
+// Substitution is a DIFFERENT business event than a quantity change, so it
+// travels as its own message type (`rsmSalesSubstituteAcceleratorMessage`,
+// same queue) with its own contract and consumer:
+//   { "BatchId": "…", "Records": [ { "SalesOrderNumber": "000751",
+//       "SalesLineNumber": 1, "OriginalItemId": "A0001",
+//       "SubstituteItemId": "A0002", "SubstituteQty": 40,
+//       "RemainingOriginalQty": 5 }, … ] }
+// -----------------------------------------------------------------------------
+[DataContractAttribute]
+public class RSMSubstitutionBatchContract
+{
+    str     batchId;
+    List    records;           // List of RSMSubstitutionRecordContract
+
+    [DataMemberAttribute('BatchId')]
+    public str parmBatchId(str _v = batchId) { batchId = _v; return batchId; }
+
+    [DataMemberAttribute('Records'),
+     DataCollectionAttribute(Types::Class, classStr(RSMSubstitutionRecordContract))]
+    public List parmRecords(List _v = records) { records = _v; return records; }
+
+    public static RSMSubstitutionBatchContract fromJson(str _json)
+    {
+        return FormJsonSerializer::deserializeObject(
+            classNum(RSMSubstitutionBatchContract), _json);
+    }
+}
+
+[DataContractAttribute]
+public class RSMSubstitutionRecordContract
+{
+    str     salesOrderNumber;
+    int     salesLineNumber;
+    str     originalItemId;
+    str     substituteItemId;
+    decimal substituteQty;         // qty of the SUBSTITUTE item to add
+    decimal remainingOriginalQty;  // what stays on the original line (0 = close it)
+
+    [DataMemberAttribute('SalesOrderNumber')]
+    public str parmSalesOrderNumber(str _v = salesOrderNumber) { salesOrderNumber = _v; return salesOrderNumber; }
+
+    [DataMemberAttribute('SalesLineNumber')]
+    public int parmSalesLineNumber(int _v = salesLineNumber) { salesLineNumber = _v; return salesLineNumber; }
+
+    [DataMemberAttribute('OriginalItemId')]
+    public str parmOriginalItemId(str _v = originalItemId) { originalItemId = _v; return originalItemId; }
+
+    [DataMemberAttribute('SubstituteItemId')]
+    public str parmSubstituteItemId(str _v = substituteItemId) { substituteItemId = _v; return substituteItemId; }
+
+    [DataMemberAttribute('SubstituteQty')]
+    public decimal parmSubstituteQty(decimal _v = substituteQty) { substituteQty = _v; return substituteQty; }
+
+    [DataMemberAttribute('RemainingOriginalQty')]
+    public decimal parmRemainingOriginalQty(decimal _v = remainingOriginalQty) { remainingOriginalQty = _v; return remainingOriginalQty; }
 }

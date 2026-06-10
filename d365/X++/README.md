@@ -13,6 +13,8 @@ the message-bus listener).
 | [RSMProrationCustomerService.xpp](RSMProrationCustomerService.xpp) | Customer master + proration priority + recent fill-rate history. |
 | [RSMProrationFillRateHistory.xpp](RSMProrationFillRateHistory.xpp) | Weekly fill-rate rollup table + accessors for History-Aware mode. |
 | [RSMProrationBatchConsumer.xpp](RSMProrationBatchConsumer.xpp) | Applies an inbound proration batch message (BatchId head + Records array) transactionally. Idempotent by `BatchId`. |
+| [RSMSubstitutionConsumer.xpp](RSMSubstitutionConsumer.xpp) | Applies an inbound substitution batch (own message type): validates against the `RSMItemSubstitution` whitelist, reduces/closes the original line, creates the substitute line. |
+| [RSMProrationSubstitutionService.xpp](RSMProrationSubstitutionService.xpp) | Read service exposing active `RSMItemSubstitution` rules (or embed a `substitutions` collection in the snapshot payload). |
 | [RSMProrationMessageBusListener.xpp](RSMProrationMessageBusListener.xpp) | Batch job that drains `d365-proration-inbound` and calls the consumer. |
 | [RSMProrationMessageBusPublisher.xpp](RSMProrationMessageBusPublisher.xpp) | Publishes `ProrationApplied` events back to `d365-proration-events`. |
 | [RSMProrationParameters.xpp](RSMProrationParameters.xpp) | Singleton config table (Service Bus FQDN, topic names, horizon, α). |
@@ -45,6 +47,14 @@ the message-bus listener).
   `DeliveryReminder`) handed straight to
   [RSMProrationBatchConsumer.xpp](RSMProrationBatchConsumer.xpp) by the
   message processor.
+- **Inbound substitutions** — same queue, message type
+  `rsmSalesSubstituteAcceleratorMessage`. `_messageContent` is a
+  `RSMSubstitutionBatchContract` (`BatchId` + `Records` of
+  `SalesOrderNumber`, `SalesLineNumber`, `OriginalItemId`,
+  `SubstituteItemId`, `SubstituteQty`, `RemainingOriginalQty`), consumed by
+  [RSMSubstitutionConsumer.xpp](RSMSubstitutionConsumer.xpp). Separate type +
+  consumer so order surgery (new line, repricing) can never poison a plain
+  proration batch.
 - **Inbound topic** `d365-proration-inbound` — alternate Service Bus route,
   consumed by
   [RSMProrationMessageBusListener.xpp](RSMProrationMessageBusListener.xpp).

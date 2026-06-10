@@ -1,0 +1,89 @@
+// File: RSMSubstitutionConsumer.xpp
+// Model:  RSM_SalesProration
+// Purpose: Invoked by the message processor for queue
+//          `rsmSalesProrateAccelerator`, message type
+//          `rsmSalesSubstituteAcceleratorMessage`. Applies an approved item
+//          substitution batch: validates each record against the
+//          RSMItemSubstitution whitelist, reduces (or closes) the original
+//          sales line, and creates a new line for the substitute item.
+//
+// Kept separate from RSMProrationBatchConsumer on purpose — substitution does
+// real order surgery (new line, pricing, trade agreements), and a failed
+// substitution must never poison a plain proration batch.
+//
+// Idempotency: BatchId unique-indexed in RSMProrationAuditLog, same as proration.
+
+public class RSMSubstitutionConsumer
+{
+    public ProrationApplied apply(RSMSubstitutionBatchContract _batch)
+    {
+        if (RSMProrationAuditLog::existsBatch(_batch.parmBatchId()))
+        {
+            return RSMProrationEventBuilder::alreadyApplied(_batch.parmBatchId());
+        }
+
+        ttsbegin;
+
+        RSMProrationAuditLog audit;
+        audit.BatchId     = _batch.parmBatchId();
+        audit.ReceivedUtc = DateTimeUtil::utcNow();
+        audit.insert();
+
+        List lineResults = new List(Types::Class);
+
+        ListEnumerator le = _batch.parmRecords().getEnumerator();
+        while (le.moveNext())
+        {
+            RSMSubstitutionRecordContract rec = le.current();
+
+            SalesLine original = SalesLine::find(rec.parmSalesOrderNumber(), rec.parmSalesLineNumber(), true);
+            if (!original)
+            {
+                lineResults.addEnd(RSMProrationEventBuilder::lineFailed(rec, 'SalesLine not found'));
+                continue;
+            }
+
+            // Defense in depth: the app proposes, the whitelist disposes.
+            if (!RSMItemSubstitution::findActive(
+                    rec.parmOriginalItemId(), rec.parmSubstituteItemId(), original.CustAccount()))
+            {
+                lineResults.addEnd(RSMProrationEventBuilder::lineFailed(rec, 'No active substitution rule'));
+                continue;
+            }
+
+            if (rec.parmSubstituteQty() <= 0 || rec.parmRemainingOriginalQty() < 0)
+            {
+                lineResults.addEnd(RSMProrationEventBuilder::lineFailed(rec, 'Invalid quantity'));
+                continue;
+            }
+
+            // 1. Reduce / close the original line.
+            original.SalesQty = rec.parmRemainingOriginalQty();
+            original.update();
+
+            // 2. Add the substitute line (copies delivery data; pricing comes
+            //    from trade agreements for the substitute item).
+            SalesLine subLine;
+            subLine.initFromSalesTable(SalesTable::find(original.SalesId));
+            subLine.copyInventDim(original.inventDim());
+            subLine.ItemId            = rec.parmSubstituteItemId();
+            subLine.SalesQty          = rec.parmSubstituteQty();
+            subLine.ShippingDateRequested = original.ShippingDateRequested;
+            subLine.createLine(true, true, true, true, true, true); // validate + init from item/price
+
+            RSMProrationBatchLine bl;
+            bl.BatchId      = _batch.parmBatchId();
+            bl.SalesId      = rec.parmSalesOrderNumber();
+            bl.LineNum      = rec.parmSalesLineNumber();
+            bl.OriginalQty  = original.SalesQty;
+            bl.AllocatedQty = rec.parmSubstituteQty();
+            bl.insert();
+
+            lineResults.addEnd(RSMProrationEventBuilder::lineApplied(rec));
+        }
+
+        ttscommit;
+
+        return RSMProrationEventBuilder::batchApplied(_batch.parmBatchId(), lineResults);
+    }
+}

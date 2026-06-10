@@ -36,7 +36,7 @@ async function listCommodities() {
 
 /** One commodity with per-item demand/supply detail. Throws 404 if unknown. */
 async function getCommodityDetail(id) {
-  const { commodities, items, customers, demand, supply } = await d365.getSnapshot();
+  const { commodities, items, customers, demand, supply, substitutions = [] } = await d365.getSnapshot();
   const c = commodities.find(x => x.id === id);
   if (!c) throw httpError(404, 'Commodity not found');
 
@@ -54,7 +54,13 @@ async function getCommodityDetail(id) {
     return { ...it, demand: itDemand, supply: itSupply, totalDemand, totalSupply };
   });
 
-  return { commodity: c, items: itemDetail };
+  // Substitution rules touching this commodity's items (Option 1 whitelist —
+  // empty until the D365 feed sends them; the UI shows candidates as
+  // "unverified" in that case).
+  const itemSet = new Set(itemList.map(i => i.itemId));
+  const subRules = substitutions.filter(s => itemSet.has(s.fromItemId) || itemSet.has(s.toItemId));
+
+  return { commodity: c, items: itemDetail, substitutions: subRules };
 }
 
 /**
@@ -128,4 +134,15 @@ async function sendBatch(lines) {
   return d365.sendProrationBatch(lines);
 }
 
-module.exports = { listCommodities, getCommodityDetail, listCustomers, runProration, sendBatch, fillStatus, httpError };
+/** Publish staged substitutions (own message type, same queue). */
+async function sendSubstitutions(subs) {
+  if (!Array.isArray(subs) || subs.length === 0) throw httpError(400, 'substitutions required');
+  for (const s of subs) {
+    if (!s.salesId || !s.fromItemId || !s.toItemId) throw httpError(400, 'salesId, fromItemId, toItemId required on every substitution');
+    if (!(Number(s.qty) > 0)) throw httpError(400, `Invalid substitute qty on ${s.salesId}/${s.lineNum}`);
+    if (Number(s.remainingOriginalQty) < 0) throw httpError(400, `Invalid remaining qty on ${s.salesId}/${s.lineNum}`);
+  }
+  return d365.sendSubstitutionBatch(subs);
+}
+
+module.exports = { listCommodities, getCommodityDetail, listCustomers, runProration, sendBatch, sendSubstitutions, fillStatus, httpError };

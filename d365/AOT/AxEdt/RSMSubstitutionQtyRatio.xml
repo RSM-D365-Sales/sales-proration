@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxEdt xmlns:i="http://www.w3.org/2001/XMLSchema-instance" i:type="AxEdtReal">
+  <Name>RSMSubstitutionQtyRatio</Name>
+  <Label>Quantity ratio</Label>
+  <Help>Units of the substitute item per ONE unit of the original item (pack-size conversion). Example: original is a 4 lb case, substitute is a 1 lb clamshell → ratio 4.00.</Help>
+  <Tags>RSM_SalesProration</Tags>
+  <NoOfDecimals>2</NoOfDecimals>
+</AxEdt>
