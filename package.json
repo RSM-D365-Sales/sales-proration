@@ -15,5 +15,8 @@
   },
   "engines": {
     "node": ">=18"
+  },
+  "devDependencies": {
+    "@azure/msal-browser": "^5.12.0"
   }
 }
