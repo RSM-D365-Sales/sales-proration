@@ -57,9 +57,32 @@ async function getCommodityDetail(id) {
   return { commodity: c, items: itemDetail };
 }
 
+/**
+ * Customers enriched with an open-demand rollup:
+ *   openLines / requestedQty / itemCount — the customer's open order book
+ *   needsProration — true when any of their demand sits on a SHORT item
+ *                    (snapshot-wide demand for that item exceeds supply)
+ */
 async function listCustomers() {
-  const { customers } = await d365.getSnapshot();
-  return customers;
+  const { customers, demand, supply } = await d365.getSnapshot();
+
+  const demandByItem = {};
+  for (const d of demand) demandByItem[d.itemId] = (demandByItem[d.itemId] || 0) + d.requestedQty;
+  const supplyByItem = {};
+  for (const s of supply) supplyByItem[s.itemId] = (supplyByItem[s.itemId] || 0) + s.availableQty;
+  const shortItems = new Set(
+    Object.keys(demandByItem).filter(id => demandByItem[id] > (supplyByItem[id] || 0)));
+
+  return customers.map(c => {
+    const lines = demand.filter(d => d.customerId === c.customerId);
+    return {
+      ...c,
+      openLines: lines.length,
+      requestedQty: lines.reduce((s, l) => s + l.requestedQty, 0),
+      itemCount: new Set(lines.map(l => l.itemId)).size,
+      needsProration: lines.some(l => shortItems.has(l.itemId)),
+    };
+  });
 }
 
 /**

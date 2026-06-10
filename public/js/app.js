@@ -117,6 +117,69 @@ function commodityCard(r) {
     </button>`;
 }
 
+// ---- Customers --------------------------------------------------------------
+let CUSTOMERS = null;
+
+async function renderCustomers() {
+  try { await initShell({ active: 'customers' }); } catch (e) { console.error('[shell]', e); }
+  setPageHead({ title: 'Customers', sub: 'Who is asking for product, at what priority, and who is short' });
+
+  try {
+    CUSTOMERS = await jget('/api/customers');
+  } catch (err) {
+    showLoadError('cust-wrap', err, renderCustomers);
+    return;
+  }
+
+  const withOrders = CUSTOMERS.filter(c => c.openLines > 0);
+  const needing = CUSTOMERS.filter(c => c.needsProration);
+  document.getElementById('kpis').innerHTML = `
+    ${kpi('Customers', CUSTOMERS.length)}
+    ${kpi('With open demand', withOrders.length, `${fmt(CUSTOMERS.reduce((s, c) => s + c.openLines, 0))} open lines`)}
+    ${kpi('Total requested', fmt(CUSTOMERS.reduce((s, c) => s + c.requestedQty, 0)))}
+    ${kpi('Need proration', needing.length, needing.length ? 'demand on short items' : 'all covered', true)}
+  `;
+
+  ['cf-search', 'cf-priority', 'cf-needs'].forEach(id =>
+    document.getElementById(id).addEventListener('input', renderCustomerRows));
+  renderCustomerRows();
+}
+
+function customerStatus(c) {
+  if (c.needsProration) return `<span class="chip Short">Needs proration</span>`;
+  if (c.openLines > 0)  return `<span class="chip OK">Covered</span>`;
+  return `<span class="chip plain">No open demand</span>`;
+}
+
+function renderCustomerRows() {
+  const q = document.getElementById('cf-search').value.trim().toLowerCase();
+  const p = document.getElementById('cf-priority').value;
+  const needsOnly = document.getElementById('cf-needs').checked;
+
+  const rows = CUSTOMERS
+    .filter(c => !q || `${c.name} ${c.customerId}`.toLowerCase().includes(q))
+    .filter(c => !p || String(c.priority) === p)
+    .filter(c => !needsOnly || c.needsProration)
+    .sort((a, b) => (a.priority - b.priority) || String(a.name).localeCompare(b.name));
+
+  document.getElementById('cf-count').textContent =
+    `${rows.length} of ${CUSTOMERS.length} customers`;
+
+  const loc = c => [c.city, c.state].filter(Boolean).join(', ');
+  document.querySelector('#cust-table tbody').innerHTML = rows.length
+    ? rows.map(c => `
+        <tr>
+          <td><strong>${esc(c.name)}</strong> <span class="muted">${esc(c.customerId)}</span></td>
+          <td>${esc(loc(c)) || '<span class="muted">—</span>'}</td>
+          <td><span class="chip plain">P${esc(c.priority)}</span></td>
+          <td class="num">${fmt(c.openLines)}</td>
+          <td class="num">${fmt(c.itemCount)}</td>
+          <td class="num">${fmt(c.requestedQty)}</td>
+          <td>${customerStatus(c)}</td>
+        </tr>`).join('')
+    : `<tr><td colspan="7" class="muted">No customers match the current filters.</td></tr>`;
+}
+
 // ---- Detail ---------------------------------------------------------------
 let DETAIL = null;          // loaded commodity payload
 let CURRENT_ITEM = null;    // item the user is prorating

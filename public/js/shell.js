@@ -13,6 +13,7 @@ window.BRANDING = null;
 
 const NAV_ICONS = {
   plan: '<path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/>',
+  customers: '<path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>',
   batches: '<path d="M3 7l9-4 9 4-9 4-9-4zM3 12l9 4 9-4M3 17l9 4 9-4"/>',
   setup: '<path d="M12 8a4 4 0 100 8 4 4 0 000-8z"/><path d="M19 12a7 7 0 00-.1-1.1l2-1.6-2-3.4-2.4 1a7 7 0 00-1.9-1.1L14.5 2h-5l-.3 2.7a7 7 0 00-1.9 1.1l-2.4-1-2 3.4 2 1.6A7 7 0 003 12c0 .4 0 .7.1 1.1l-2 1.6 2 3.4 2.4-1c.6.5 1.2.8 1.9 1.1L9.5 22h5l.3-2.7c.7-.3 1.3-.6 1.9-1.1l2.4 1 2-3.4-2-1.6c0-.4.1-.7.1-1.1z"/>',
 };
@@ -72,6 +73,7 @@ function renderSidebar(b, active) {
     </a>
     <nav class="nav">
       ${item('plan', 'Commodities', 'index.html')}
+      ${item('customers', 'Customers', 'customers.html')}
       ${item('batches', 'Batches', 'index.html#batches')}
       ${item('setup', 'Setup', 'setup.html')}
     </nav>

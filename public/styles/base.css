@@ -325,6 +325,16 @@ h1, h2, h3 { font-family: var(--font-display); color: var(--ink); font-weight: v
 .row { display: flex; gap: 1rem; align-items: flex-end; margin-bottom: 1rem; flex-wrap: wrap; }
 .field { display: flex; flex-direction: column; gap: .35rem; font-size: .72rem; color: var(--ink-soft); font-weight: 650; text-transform: uppercase; letter-spacing: .05em; }
 
+/* Filter bar (list pages) */
+.row.filters { align-items: flex-end; margin-bottom: 1.1rem; }
+.row.filters .muted { margin-left: auto; align-self: center; font-size: .8rem; font-variant-numeric: tabular-nums; }
+.check {
+  display: inline-flex; align-items: center; gap: .45rem;
+  font-size: .85rem; color: var(--ink-soft); font-weight: 500;
+  padding-bottom: .55rem; cursor: pointer; user-select: none;
+}
+.check input { width: 15px; height: 15px; min-width: 0; accent-color: var(--accent); cursor: pointer; }
+
 /* ---- Form controls ------------------------------------------------------- */
 
 select, input[type="text"], input[type="number"], input[type="url"], input:not([type]) {

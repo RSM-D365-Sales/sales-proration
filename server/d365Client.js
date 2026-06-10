@@ -131,6 +131,10 @@ function normalizeSnapshot(raw) {
     customerId: pick(c, 'customerId', 'CustAccount', 'AccountNum'),
     name:       pick(c, 'name') ?? pick(c, 'customerId'),
     priority:   intOr(pick(c, 'priority', 'Priority'), 3),
+    // Ship-to location — optional in the feed (RSMProrationCustomerContract
+    // exposes shipToCity/shipToState); blank when the contract omits them.
+    city:       String(pick(c, 'shipToCity', 'city') ?? ''),
+    state:      String(pick(c, 'shipToState', 'state') ?? ''),
   }));
 
   const demand = asArray(get(raw, 'Demand') || get(raw, 'demand')).map(d => ({
