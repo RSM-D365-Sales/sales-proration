@@ -7,9 +7,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400..700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" />
-  <link rel="stylesheet" href="/styles/base.css" />
-  <link rel="stylesheet" href="/styles/skin-editorial.css" />
-  <link rel="stylesheet" href="/styles/skin-enterprise.css" />
+  <!-- Relative asset paths: the site must work at a domain root (localhost)
+       AND under a subpath (www.rsmd365.com/sales-proration/). -->
+  <link rel="stylesheet" href="styles/base.css" />
+  <link rel="stylesheet" href="styles/skin-editorial.css" />
+  <link rel="stylesheet" href="styles/skin-enterprise.css" />
 </head>
 <body>
   <div class="layout">
@@ -38,11 +40,11 @@
   </div>
 
   <script src="https://alcdn.msauth.net/browser/3.30.0/js/msal-browser.min.js"></script>
-  <script src="/config.js"></script>
-  <script src="/js/auth.js"></script>
-  <script src="/js/shell.js"></script>
-  <script src="/js/icons.js"></script>
-  <script src="/js/app.js"></script>
+  <script src="config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/shell.js"></script>
+  <script src="js/icons.js"></script>
+  <script src="js/app.js"></script>
   <script>renderLanding();</script>
 </body>
 </html>

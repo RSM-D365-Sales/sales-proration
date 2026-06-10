@@ -1,20 +1,16 @@
-# Deploys the API (Azure Functions, Node v4 model — api/ + server/) to a
-# Function App.
+# Deploys the API (Azure Functions, Node v4 model — api/ + server/) to the
+# Flex Consumption Function App.
 #
-# One-time setup:
-#   1. Create a Function App (Linux, Node 20, Consumption is fine).
-#   2. Function App > Settings > Environment variables — add:
-#        D365_CONFIG_MODE = env
-#        D365_BASE_URL / D365_TENANT_ID / D365_CLIENT_ID / D365_CLIENT_SECRET
-#        D365_COMPANY  (+ optional D365_SERVICE_GROUP / D365_SERVICE /
-#                       D365_OPERATION / D365_SCOPE / D365_TIMEOUT_MS)
-#        AUTH_TENANT_ID / AUTH_CLIENT_ID   (Entra app registration)
-#   3. Function App > API > CORS — add your GitHub Pages origin
-#      (e.g. https://prorate.yourdomain.com).
-#   4. Repo secrets:
-#        AZURE_FUNCTIONAPP_PUBLISH_PROFILE  (download from the Function App)
-#      Repo variables:
-#        AZURE_FUNCTIONAPP_NAME             (the app name)
+# Flex Consumption does not support publish profiles, so this authenticates
+# with OIDC (federated identity — no stored credentials):
+#   - Entra app 'gh-deploy-sales-proration' has a federated credential for
+#     repo:RSM-D365-Sales/sales-proration:ref:refs/heads/main and Contributor
+#     on the Function App.
+#   - Repo secrets: AZURE_CLIENT_ID / AZURE_TENANT_ID / AZURE_SUBSCRIPTION_ID
+#   - Repo variable: AZURE_FUNCTIONAPP_NAME (prorate-fn-wmv50)
+#
+# Function App settings (already configured): D365_CONFIG_MODE=env, D365_*,
+# AUTH_TENANT_ID / AUTH_CLIENT_ID, CORS for https://www.rsmd365.com.
 
 name: Deploy API to Azure Functions
 
@@ -29,6 +25,10 @@ on:
       - '.github/workflows/deploy-api.yml'
   workflow_dispatch:
 
+permissions:
+  contents: read
+  id-token: write
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -36,13 +36,17 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
-      - run: npm ci --omit=dev
+          node-version: 24
+      - run: npm ci
       - run: npm test
-        env:
-          NODE_ENV: test
+      - run: npm prune --omit=dev
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       - uses: Azure/functions-action@v1
         with:
           app-name: ${{ vars.AZURE_FUNCTIONAPP_NAME }}
-          publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
           package: .
+          remote-build: false

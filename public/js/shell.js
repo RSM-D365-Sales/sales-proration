@@ -63,7 +63,7 @@ function renderSidebar(b, active) {
       <button class="nav__signout" type="button" onclick="AUTH.signOut()">Sign out</button>
     </div>` : '';
   document.getElementById('sidebar').innerHTML = `
-    <a class="brand" href="/">
+    <a class="brand" href="index.html">
       ${brandMark(b)}
       <span>
         <span class="brand__name">${escAttr(b.brandName)}</span>
@@ -71,9 +71,9 @@ function renderSidebar(b, active) {
       </span>
     </a>
     <nav class="nav">
-      ${item('plan', 'Commodities', '/')}
-      ${item('batches', 'Batches', '/#batches')}
-      ${item('setup', 'Setup', '/setup.html')}
+      ${item('plan', 'Commodities', 'index.html')}
+      ${item('batches', 'Batches', 'index.html#batches')}
+      ${item('setup', 'Setup', 'setup.html')}
     </nav>
     <span class="nav__spacer"></span>
     ${userHtml}

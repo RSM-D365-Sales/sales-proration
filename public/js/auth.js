@@ -28,11 +28,15 @@
   async function init() {
     if (!enabled) return null;
     if (!window.msal) throw new Error('MSAL library failed to load');
+    // Redirect to the site's directory (e.g. https://www.rsmd365.com/sales-proration/
+    // or http://localhost:5173/) so only ONE redirect URI per environment needs
+    // registering; MSAL returns the user to the page they started on.
+    const baseDir = window.location.origin + window.location.pathname.replace(/[^/]*$/, '');
     pca = new window.msal.PublicClientApplication({
       auth: {
         clientId: a.clientId,
         authority: `https://login.microsoftonline.com/${a.tenantId}`,
-        redirectUri: window.location.origin + window.location.pathname,
+        redirectUri: baseDir,
       },
       cache: { cacheLocation: 'sessionStorage' },
     });

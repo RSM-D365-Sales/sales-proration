@@ -98,11 +98,11 @@ function commodityCard(r) {
   const fillW = Math.min(100, Math.max(0, r.fillRate * 100));
   return `
     <button class="card" style="--card-tint:${commodityTint(r)}"
-            onclick="location.href='/commodity.html?id=${encodeURIComponent(r.id)}'">
+            onclick="location.href='commodity.html?id=${encodeURIComponent(r.id)}'">
       <div class="card__media">
         <span class="card__status"><span class="chip ${r.status}">${st.label}</span></span>
         <img src="${commodityIconUrl(r)}" alt="${esc(r.name)}" loading="lazy"
-             onerror="this.onerror=null;this.src='/img/commodities/_fallback.svg'">
+             onerror="this.onerror=null;this.src='img/commodities/_fallback.svg'">
       </div>
       <div class="card__body">
         <div class="card__title">${esc(r.name)}</div>
@@ -125,11 +125,11 @@ let CURRENT_RESULTS = null; // last proration response
 async function renderDetail() {
   try { await initShell({ active: 'plan' }); } catch (e) { console.error('[shell]', e); }
   const id = qs('id');
-  if (!id) { location.href = '/'; return; }
+  if (!id) { location.href = 'index.html'; return; }
   try {
     DETAIL = await jget('/api/commodities/' + encodeURIComponent(id));
   } catch (err) {
-    setPageHead({ title: 'Commodity', crumbHtml: `<a href="/">Commodities</a>` });
+    setPageHead({ title: 'Commodity', crumbHtml: `<a href="index.html">Commodities</a>` });
     showLoadError('items', err, renderDetail);
     return;
   }
@@ -138,7 +138,7 @@ async function renderDetail() {
   setPageHead({
     title: c.name,
     sub: c.description || '',
-    crumbHtml: `<a href="/">Commodities</a> <span>›</span> <span>${esc(c.name)}</span>`,
+    crumbHtml: `<a href="index.html">Commodities</a> <span>›</span> <span>${esc(c.name)}</span>`,
   });
   document.title = `${c.name}`;
 
@@ -272,7 +272,7 @@ async function approveBatch() {
   try {
     const r = await jpost('/api/prorate/send', { lines });
     alert(`Sent batch ${String(r.batchId).slice(0, 8)} (${r.recordCount} line(s)) to D365 message queue 'rsmSalesProrateAccelerator'.`);
-    location.href = '/';
+    location.href = 'index.html';
   } catch (err) {
     alert(`Send failed: ${err.message}`);
   } finally {

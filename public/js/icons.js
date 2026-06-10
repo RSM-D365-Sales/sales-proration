@@ -7,7 +7,7 @@
 // to a generic produce-crate icon. To add coverage: drop a new SVG in
 // /public/img/commodities/ and add a rule here.
 
-const ICON_DIR = '/img/commodities/';
+const ICON_DIR = 'img/commodities/'; // relative — works at a root AND under a subpath
 
 // Per-customer override: pin a specific commodity / buyer-group CODE to an icon.
 // Live D365 often returns opaque codes (id "10", name "Buyer group 1") that the
