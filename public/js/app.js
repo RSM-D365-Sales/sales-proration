@@ -119,6 +119,7 @@ function commodityCard(r) {
 
 // ---- Customers --------------------------------------------------------------
 let CUSTOMERS = null;
+let CUST_SORT = { key: 'priority', dir: 1 }; // click a column header to change
 
 async function renderCustomers() {
   try { await initShell({ active: 'customers' }); } catch (e) { console.error('[shell]', e); }
@@ -142,7 +143,31 @@ async function renderCustomers() {
 
   ['cf-search', 'cf-priority', 'cf-needs'].forEach(id =>
     document.getElementById(id).addEventListener('input', renderCustomerRows));
+
+  document.querySelectorAll('#cust-table th[data-sort]').forEach(th =>
+    th.addEventListener('click', () => {
+      const key = th.dataset.sort;
+      CUST_SORT = { key, dir: CUST_SORT.key === key ? -CUST_SORT.dir : 1 };
+      renderCustomerRows();
+    }));
+
   renderCustomerRows();
+}
+
+function customerComparator(a, b) {
+  const { key, dir } = CUST_SORT;
+  const val = c => {
+    switch (key) {
+      case 'name':     return String(c.name).toLowerCase();
+      case 'location': return `${c.state} ${c.city}`.trim().toLowerCase();
+      // needs proration first, then covered, then no open demand
+      case 'status':   return c.needsProration ? 0 : (c.openLines > 0 ? 1 : 2);
+      default:         return c[key]; // priority / openLines / itemCount / requestedQty
+    }
+  };
+  const va = val(a), vb = val(b);
+  const cmp = typeof va === 'number' ? va - vb : String(va).localeCompare(String(vb));
+  return (cmp * dir) || String(a.name).localeCompare(String(b.name));
 }
 
 function customerStatus(c) {
@@ -160,7 +185,12 @@ function renderCustomerRows() {
     .filter(c => !q || `${c.name} ${c.customerId}`.toLowerCase().includes(q))
     .filter(c => !p || String(c.priority) === p)
     .filter(c => !needsOnly || c.needsProration)
-    .sort((a, b) => (a.priority - b.priority) || String(a.name).localeCompare(b.name));
+    .sort(customerComparator);
+
+  document.querySelectorAll('#cust-table th[data-sort]').forEach(th => {
+    th.classList.toggle('is-asc',  th.dataset.sort === CUST_SORT.key && CUST_SORT.dir === 1);
+    th.classList.toggle('is-desc', th.dataset.sort === CUST_SORT.key && CUST_SORT.dir === -1);
+  });
 
   document.getElementById('cf-count').textContent =
     `${rows.length} of ${CUSTOMERS.length} customers`;

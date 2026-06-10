@@ -290,6 +290,13 @@ h1, h2, h3 { font-family: var(--font-display); color: var(--ink); font-weight: v
   font-variant-numeric: tabular-nums;
 }
 .grid .num { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* Sortable column headers */
+.grid th[data-sort] { cursor: pointer; user-select: none; }
+.grid th[data-sort]:hover { color: var(--ink); }
+.grid th[data-sort]::after { content: "↕"; margin-left: .35rem; opacity: .35; font-size: .9em; }
+.grid th[data-sort].is-asc::after  { content: "↑"; opacity: 1; color: var(--accent); }
+.grid th[data-sort].is-desc::after { content: "↓"; opacity: 1; color: var(--accent); }
 .grid--clickable tbody tr { cursor: pointer; }
 .grid--clickable tbody tr:hover { background: var(--accent-soft); }
 
