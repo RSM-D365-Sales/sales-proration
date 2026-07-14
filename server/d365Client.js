@@ -2,7 +2,9 @@
 //
 // A single custom-service operation returns the full planning snapshot:
 //   POST {baseUrl}/api/services/{serviceGroup}/{service}/{operation}
-//   body: { "_inputContract": "<legal entity / dataAreaId>" }
+//   body: { "_inputContract": "{\"dataAreaId\":\"<legal entity>\"}" }
+//   (the service takes _inputContract as a string and deserializes the JSON
+//   inside it — a bare company string is rejected since the June 2026 update)
 //   ->  { Demand[], items[], commodities[], Supply[], customers[] }
 //
 // We fetch that once, normalize it into the shapes the rest of the app already
@@ -204,7 +206,7 @@ async function getSnapshot(companyOverride) {
         'content-type': 'application/json',
         accept: 'application/json',
       },
-      body: JSON.stringify({ _inputContract: company }),
+      body: JSON.stringify({ _inputContract: JSON.stringify({ dataAreaId: company }) }),
       signal: AbortSignal.timeout(c.timeoutMs),
     });
   } catch (err) {
