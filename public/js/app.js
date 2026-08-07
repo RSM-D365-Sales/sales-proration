@@ -43,6 +43,43 @@ function showLoadError(targetId, err, retryFn) {
   console.error('[load error]', err);
 }
 
+// ---- Silent background refresh --------------------------------------------
+// Keeps page data current WITHOUT reloading the page: each page registers a
+// tick that re-fetches its data and repaints only the affected regions, and
+// only when the payload actually changed (JSON snapshot compare) — so no
+// flicker, no scroll loss, no clobbered inputs. A cycle is skipped while the
+// tab is hidden or a form control has focus; the commodity page additionally
+// skips while proration work is staged locally. Default 20s; override with
+// APP_CONFIG.refreshMs.
+const REFRESH_MS = Number((window.APP_CONFIG || {}).refreshMs) || 20000;
+let LIVE_TIMER = null;
+
+function startLiveRefresh(tick) {
+  if (LIVE_TIMER) return; // one poller per page
+  let busy = false;
+  const cycle = async () => {
+    if (busy || document.hidden) return;
+    const ae = document.activeElement;
+    if (ae && ae.matches && ae.matches('input, select, textarea')) return;
+    busy = true;
+    try { await tick(); } catch (err) { console.debug('[live]', err.message); }
+    busy = false;
+  };
+  LIVE_TIMER = setInterval(cycle, REFRESH_MS);
+  // Catch up right away when the tab becomes visible again.
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) cycle(); });
+}
+
+/** Fetch url; return parsed data only when it differs from snap[key]. */
+const SNAP = {};
+async function fetchIfChanged(key, url) {
+  const data = await jget(url);
+  const s = JSON.stringify(data);
+  if (SNAP[key] === s) return null;
+  SNAP[key] = s;
+  return data;
+}
+
 // ---- Landing --------------------------------------------------------------
 async function renderLanding() {
   try { await initShell({ active: 'plan' }); } catch (e) { console.error('[shell]', e); }
@@ -50,12 +87,35 @@ async function renderLanding() {
 
   let rows;
   try {
-    rows = await jget('/api/commodities');
+    rows = await fetchIfChanged('commodities', '/api/commodities');
   } catch (err) {
     showLoadError('cards', err, renderLanding);
     return;
   }
+  if (rows) paintLanding(rows);
 
+  // Batches are best-effort — a failure here must not blank the page.
+  try {
+    const batches = await fetchIfChanged('batches', '/api/batches');
+    if (batches) paintBatches(batches);
+  } catch (err) {
+    console.error('[batches]', err);
+    document.querySelector('#batch-table tbody').innerHTML =
+      `<tr><td colspan="5" class="muted">Couldn’t load batches (${esc(err.message)}).</td></tr>`;
+  }
+
+  // Keep the overview current without reloading the page.
+  startLiveRefresh(async () => {
+    const fresh = await fetchIfChanged('commodities', '/api/commodities');
+    if (fresh) paintLanding(fresh);
+    try {
+      const batches = await fetchIfChanged('batches', '/api/batches');
+      if (batches) paintBatches(batches);
+    } catch { /* batches endpoint is best-effort */ }
+  });
+}
+
+function paintLanding(rows) {
   const totalDemand = rows.reduce((s, r) => s + r.totalDemand, 0);
   const totalSupply = rows.reduce((s, r) => s + r.totalSupply, 0);
   const fill = totalDemand ? totalSupply / totalDemand : 1;
@@ -66,31 +126,23 @@ async function renderLanding() {
     ${kpi('Available supply', fmt(totalSupply))}
     ${kpi('Overall fill', pct(fill), attention ? `${attention} need attention` : 'All on track', true)}
   `;
-
   document.getElementById('cards').innerHTML = rows.map(commodityCard).join('');
+}
 
-  // Batches are best-effort — a failure here must not blank the page.
-  try {
-    const batches = await jget('/api/batches');
-    const btbody = document.querySelector('#batch-table tbody');
-    btbody.innerHTML = batches.length
-      ? batches.slice().reverse().map(b => {
-          const body = b.body || {};
-          return `
-            <tr>
-              <td><code>${esc(String(body.batchId || '').slice(0, 8) || '—')}</code></td>
-              <td>${esc(body.strategy || '')}</td>
-              <td>${esc(body.commodityId || '')}</td>
-              <td class="num">${Array.isArray(body.lines) ? body.lines.length : 0}</td>
-              <td class="muted">${esc(b.enqueuedUtc || '')}</td>
-            </tr>`;
-        }).join('')
-      : `<tr><td colspan="5" class="muted">No batches sent yet.</td></tr>`;
-  } catch (err) {
-    console.error('[batches]', err);
-    document.querySelector('#batch-table tbody').innerHTML =
-      `<tr><td colspan="5" class="muted">Couldn’t load batches (${esc(err.message)}).</td></tr>`;
-  }
+function paintBatches(batches) {
+  document.querySelector('#batch-table tbody').innerHTML = batches.length
+    ? batches.slice().reverse().map(b => {
+        const body = b.body || {};
+        return `
+          <tr>
+            <td><code>${esc(String(body.batchId || '').slice(0, 8) || '—')}</code></td>
+            <td>${esc(body.strategy || '')}</td>
+            <td>${esc(body.commodityId || '')}</td>
+            <td class="num">${Array.isArray(body.lines) ? body.lines.length : 0}</td>
+            <td class="muted">${esc(b.enqueuedUtc || '')}</td>
+          </tr>`;
+      }).join('')
+    : `<tr><td colspan="5" class="muted">No batches sent yet.</td></tr>`;
 }
 
 function commodityCard(r) {
@@ -127,19 +179,13 @@ async function renderCustomers() {
 
   try {
     CUSTOMERS = await jget('/api/customers');
+    SNAP.customers = JSON.stringify(CUSTOMERS);
   } catch (err) {
     showLoadError('cust-wrap', err, renderCustomers);
     return;
   }
 
-  const withOrders = CUSTOMERS.filter(c => c.openLines > 0);
-  const needing = CUSTOMERS.filter(c => c.needsProration);
-  document.getElementById('kpis').innerHTML = `
-    ${kpi('Customers', CUSTOMERS.length)}
-    ${kpi('With open demand', withOrders.length, `${fmt(CUSTOMERS.reduce((s, c) => s + c.openLines, 0))} open lines`)}
-    ${kpi('Total requested', fmt(CUSTOMERS.reduce((s, c) => s + c.requestedQty, 0)))}
-    ${kpi('Need proration', needing.length, needing.length ? 'demand on short items' : 'all covered', true)}
-  `;
+  paintCustomersKpis();
 
   ['cf-search', 'cf-priority', 'cf-needs'].forEach(id =>
     document.getElementById(id).addEventListener('input', renderCustomerRows));
@@ -152,6 +198,27 @@ async function renderCustomers() {
     }));
 
   renderCustomerRows();
+
+  // Refresh silently; renderCustomerRows re-applies the current filters/sort,
+  // and the filter inputs themselves are never re-rendered.
+  startLiveRefresh(async () => {
+    const fresh = await fetchIfChanged('customers', '/api/customers');
+    if (!fresh) return;
+    CUSTOMERS = fresh;
+    paintCustomersKpis();
+    renderCustomerRows();
+  });
+}
+
+function paintCustomersKpis() {
+  const withOrders = CUSTOMERS.filter(c => c.openLines > 0);
+  const needing = CUSTOMERS.filter(c => c.needsProration);
+  document.getElementById('kpis').innerHTML = `
+    ${kpi('Customers', CUSTOMERS.length)}
+    ${kpi('With open demand', withOrders.length, `${fmt(CUSTOMERS.reduce((s, c) => s + c.openLines, 0))} open lines`)}
+    ${kpi('Total requested', fmt(CUSTOMERS.reduce((s, c) => s + c.requestedQty, 0)))}
+    ${kpi('Need proration', needing.length, needing.length ? 'demand on short items' : 'all covered', true)}
+  `;
 }
 
 function customerComparator(a, b) {
@@ -232,6 +299,7 @@ async function renderDetail() {
   if (!id) { location.href = 'index.html'; return; }
   try {
     DETAIL = await jget('/api/commodities/' + encodeURIComponent(id));
+    SNAP.detail = JSON.stringify(DETAIL);
   } catch (err) {
     setPageHead({ title: 'Commodity', crumbHtml: `<a href="index.html">Commodities</a>` });
     showLoadError('items', err, renderDetail);
@@ -246,21 +314,22 @@ async function renderDetail() {
   });
   document.title = `${c.name}`;
 
-  const totalDemand = DETAIL.items.reduce((s, i) => s + i.totalDemand, 0);
-  const totalSupply = DETAIL.items.reduce((s, i) => s + i.totalSupply, 0);
-  const gap = Math.max(0, totalDemand - totalSupply);
-  const fill = totalDemand ? totalSupply / totalDemand : 1;
-
-  document.getElementById('kpis').innerHTML = `
-    ${kpi('Total demand', fmt(totalDemand))}
-    ${kpi('Available supply', fmt(totalSupply))}
-    ${kpi('Gap', fmt(gap), gap ? 'undersupplied' : 'covered')}
-    ${kpi('Fill rate', pct(fill), STATUS[statusOf(fill)].label, true)}
-  `;
+  paintDetailKpis();
 
   PRORATIONS = {};
   SUBSTITUTIONS = [];
   renderItems();
+
+  // Silent refresh — but never while proration work is staged: re-rendering
+  // from fresh D365 data would fight the planner's in-progress allocations.
+  startLiveRefresh(async () => {
+    if (Object.keys(PRORATIONS).length || SUBSTITUTIONS.length) return;
+    const fresh = await fetchIfChanged('detail', '/api/commodities/' + encodeURIComponent(id));
+    if (!fresh) return;
+    DETAIL = fresh;
+    paintDetailKpis();
+    renderItems();
+  });
 
   document.getElementById('pp-strategy').addEventListener('change', e => {
     document.getElementById('pp-alpha-wrap').classList.toggle('hidden', e.target.value !== 'HistoryAware');
@@ -286,6 +355,19 @@ async function renderDetail() {
   // Deep link: commodity.html?id=…&prorate=all runs the default strategy
   // across every item on load — handy for demos.
   if (qs('prorate') === 'all') prorateAll();
+}
+
+function paintDetailKpis() {
+  const totalDemand = DETAIL.items.reduce((s, i) => s + i.totalDemand, 0);
+  const totalSupply = DETAIL.items.reduce((s, i) => s + i.totalSupply, 0);
+  const gap = Math.max(0, totalDemand - totalSupply);
+  const fill = totalDemand ? totalSupply / totalDemand : 1;
+  document.getElementById('kpis').innerHTML = `
+    ${kpi('Total demand', fmt(totalDemand))}
+    ${kpi('Available supply', fmt(totalSupply))}
+    ${kpi('Gap', fmt(gap), gap ? 'undersupplied' : 'covered')}
+    ${kpi('Fill rate', pct(fill), STATUS[statusOf(fill)].label, true)}
+  `;
 }
 
 function renderItems() {
