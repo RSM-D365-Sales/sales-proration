@@ -28,6 +28,9 @@ function esc(s) { return String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;'
 
 async function renderSetup() {
   await initShell({ active: 'setup' });
+  // Setup is Proration.Admin only — bounce other roles to the landing page.
+  // Navigation convenience; the API rejects non-admin /setup calls with 403.
+  if (!AUTH.hasRole('Proration.Admin')) { location.replace('index.html'); return; }
   setPageHead({ title: 'Setup', sub: 'Connection profiles and white-label branding' });
   wireTabs();
   await renderEnvironments();

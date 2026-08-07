@@ -10,6 +10,8 @@
 //                             redirects to Entra when sign-in is needed.
 //   AUTH.fetch(path, opts) -> fetch with apiBase prefix + Authorization header.
 //   AUTH.account()         -> { name, username } | null
+//   AUTH.roles()           -> app roles from the ID token (e.g. Proration.Admin)
+//   AUTH.hasRole(r)        -> role check; always true when auth is disabled
 //   AUTH.signOut()         -> redirect sign-out
 //   AUTH.enabled           -> boolean
 
@@ -81,9 +83,23 @@
     return acct ? { name: acct.name || acct.username, username: acct.username } : null;
   }
 
+  // Entra app roles from the ID token (assigned per user on the enterprise
+  // app). Sign-in is blocked for unassigned users, so a signed-in account
+  // always carries at least one role.
+  function roles() {
+    const acct = enabled && pca ? pca.getActiveAccount() : null;
+    return acct?.idTokenClaims?.roles || [];
+  }
+
+  // View-gating convenience only — the API re-checks roles on every call.
+  // With auth disabled (local dev) everything is visible.
+  function hasRole(role) {
+    return !enabled || roles().includes(role);
+  }
+
   function signOut() {
     if (enabled && pca) pca.logoutRedirect({ account: pca.getActiveAccount() });
   }
 
-  window.AUTH = { ensureSignedIn, getToken, fetch: authFetch, apiUrl, account, signOut, enabled };
+  window.AUTH = { ensureSignedIn, getToken, fetch: authFetch, apiUrl, account, roles, hasRole, signOut, enabled };
 })();

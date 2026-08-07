@@ -6,7 +6,7 @@ const d365 = require('./d365Client');
 const config = require('./config');
 const branding = require('./branding');
 const portal = require('./portalService');
-const { authConfig, requireAuth } = require('./entraAuth');
+const { authConfig, requireAuth, requireRole, ROLES } = require('./entraAuth');
 const { missingD365Settings } = config;
 const { publishBatch, readOutbox } = require('./messageQueue');
 
@@ -36,6 +36,11 @@ if (corsOrigins.length) {
 // development needs no sign-in. Static files stay public — the data is what's
 // protected.
 app.use('/api', requireAuth());
+
+// Setup (environment + branding config) is Proration.Admin only; every other
+// /api route accepts any assigned app role (checked inside requireAuth's
+// verify — the enterprise app blocks unassigned users at sign-in anyway).
+app.use('/api/setup', requireRole(ROLES.ADMIN));
 
 app.use(express.static(path.join(__dirname, '..', 'public')));
 

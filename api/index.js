@@ -19,15 +19,22 @@ const portal = require('../server/portalService');
 const branding = require('../server/branding');
 const d365 = require('../server/d365Client');
 const config = require('../server/config');
-const { verifyBearer } = require('../server/entraAuth');
+const { verifyBearer, hasAnyRole, ROLES } = require('../server/entraAuth');
 
 function json(status, body) { return { status, jsonBody: body }; }
 
-/** Wrap a handler with Entra auth + error translation (mirrors Express `route`). */
-function guarded(handler) {
+// Default: any assigned app role may call. Setup routes pass [ROLES.ADMIN].
+const ANY_ROLE = [ROLES.ADMIN, ROLES.USER];
+
+/** Wrap a handler with Entra auth + role check + error translation
+ *  (mirrors Express `route`). */
+function guarded(handler, roles = ANY_ROLE) {
   return async (request, context) => {
     const auth = await verifyBearer(request.headers.get('authorization'));
     if (!auth.ok) return json(auth.status, { error: auth.error });
+    if (!hasAnyRole(auth, roles)) {
+      return json(403, { error: `Requires role: ${roles.join(' or ')}` });
+    }
     try {
       return await handler(request, context);
     } catch (err) {
@@ -122,14 +129,14 @@ app.http('setupEnvironments', {
       }],
       defaults: {},
     });
-  }),
+  }, [ROLES.ADMIN]),
 });
 
 app.http('setupTest', {
   methods: ['POST'],
   route: 'setup/test',
   authLevel: 'anonymous',
-  handler: guarded(async () => json(200, await d365.testConnection())),
+  handler: guarded(async () => json(200, await d365.testConnection()), [ROLES.ADMIN]),
 });
 
 // The local-outbox demo endpoints (/api/batches) are intentionally absent:

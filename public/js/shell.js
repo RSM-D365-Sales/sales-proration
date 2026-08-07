@@ -58,9 +58,12 @@ function renderSidebar(b, active) {
   const item = (key, label, href) =>
     `<a class="nav__item ${active === key ? 'is-active' : ''}" href="${href}">${navIcon(key)}<span>${label}</span></a>`;
   const acct = window.AUTH?.account();
+  const roleLabels = { 'Proration.Admin': 'Proration Admin', 'Proration.User': 'Proration User' };
+  const roleLabel = (window.AUTH?.roles() || []).map(r => roleLabels[r] || r).join(', ');
   const userHtml = acct ? `
     <div class="nav__user">
       <span class="nav__user-name" title="${escAttr(acct.username)}">${escAttr(acct.name)}</span>
+      ${roleLabel ? `<span class="nav__user-role" style="display:block;font-size:.72rem;opacity:.65">${escAttr(roleLabel)}</span>` : ''}
       <button class="nav__signout" type="button" onclick="AUTH.signOut()">Sign out</button>
     </div>` : '';
   document.getElementById('sidebar').innerHTML = `
@@ -75,7 +78,7 @@ function renderSidebar(b, active) {
       ${item('plan', 'Commodities', 'index.html')}
       ${item('customers', 'Customers', 'customers.html')}
       ${item('batches', 'Batches', 'index.html#batches')}
-      ${item('setup', 'Setup', 'setup.html')}
+      ${window.AUTH?.hasRole('Proration.Admin') ? item('setup', 'Setup', 'setup.html') : ''}
     </nav>
     <span class="nav__spacer"></span>
     ${userHtml}

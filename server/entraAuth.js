@@ -11,6 +11,15 @@
 
 const { createRemoteJWKSet, jwtVerify } = require('jose');
 
+// Entra app roles (values match the app registration's appRoles). Assigned
+// per user under Enterprise applications → ProrationApp → Users and groups.
+// The enterprise app has "assignment required" ON, so every valid token
+// carries at least one of these in its `roles` claim.
+const ROLES = {
+  ADMIN: 'Proration.Admin',  // everything, incl. Setup
+  USER: 'Proration.User',    // update quantities, prorate, send to D365
+};
+
 let jwks = null;
 let jwksTenant = null;
 
@@ -49,10 +58,22 @@ async function verifyBearer(authHeader) {
       ],
       audience: [c.clientId, `api://${c.clientId}`],
     });
-    return { ok: true, user: payload.preferred_username || payload.upn || payload.sub, payload };
+    return {
+      ok: true,
+      user: payload.preferred_username || payload.upn || payload.sub,
+      roles: payload.roles || [],
+      payload,
+    };
   } catch (err) {
     return { ok: false, status: 401, error: `Invalid token: ${err.message}` };
   }
+}
+
+/** True when the verified auth result carries any of the given roles
+ *  (always true when auth is disabled — plain local development). */
+function hasAnyRole(auth, roles) {
+  if (auth.disabled) return true;
+  return (auth.roles || []).some(r => roles.includes(r));
 }
 
 /** Express middleware guarding /api routes when auth is configured. */
@@ -61,8 +82,17 @@ function requireAuth() {
     const r = await verifyBearer(req.headers.authorization);
     if (!r.ok) return res.status(r.status).json({ error: r.error });
     req.user = r.user || null;
+    req.auth = r;
     next();
   };
 }
 
-module.exports = { authConfig, verifyBearer, requireAuth };
+/** Express middleware requiring one of the given app roles (after requireAuth). */
+function requireRole(...roles) {
+  return (req, res, next) => {
+    if (!req.auth || hasAnyRole(req.auth, roles)) return next();
+    res.status(403).json({ error: `Requires role: ${roles.join(' or ')}` });
+  };
+}
+
+module.exports = { authConfig, verifyBearer, requireAuth, requireRole, hasAnyRole, ROLES };
