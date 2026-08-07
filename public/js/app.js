@@ -43,31 +43,46 @@ function showLoadError(targetId, err, retryFn) {
   console.error('[load error]', err);
 }
 
-// ---- Silent background refresh --------------------------------------------
-// Keeps page data current WITHOUT reloading the page: each page registers a
-// tick that re-fetches its data and repaints only the affected regions, and
-// only when the payload actually changed (JSON snapshot compare) — so no
-// flicker, no scroll loss, no clobbered inputs. A cycle is skipped while the
-// tab is hidden or a form control has focus; the commodity page additionally
-// skips while proration work is staged locally. Default 20s; override with
-// APP_CONFIG.refreshMs.
-const REFRESH_MS = Number((window.APP_CONFIG || {}).refreshMs) || 20000;
-let LIVE_TIMER = null;
+// ---- Manual in-place refresh ----------------------------------------------
+// Data is fetched once on page load and re-fetched ONLY when the user clicks
+// Refresh in the page header — every fetch costs D365 calls, so nothing polls
+// in the background. The refresh itself is in-place: regions repaint only
+// when the payload actually changed (JSON snapshot compare), so there is no
+// page reload, no scroll loss, no flicker.
+let REFRESH_TICK = null;
 
-function startLiveRefresh(tick) {
-  if (LIVE_TIMER) return; // one poller per page
-  let busy = false;
-  const cycle = async () => {
-    if (busy || document.hidden) return;
-    const ae = document.activeElement;
-    if (ae && ae.matches && ae.matches('input, select, textarea')) return;
-    busy = true;
-    try { await tick(); } catch (err) { console.debug('[live]', err.message); }
-    busy = false;
-  };
-  LIVE_TIMER = setInterval(cycle, REFRESH_MS);
-  // Catch up right away when the tab becomes visible again.
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) cycle(); });
+function registerRefresh(tick) {
+  REFRESH_TICK = tick;
+  const inner = document.querySelector('#pagehead .pagehead__inner');
+  if (!inner || document.getElementById('page-refresh')) return;
+  let spacer = inner.querySelector('.spacer');
+  if (!spacer) {
+    spacer = document.createElement('div');
+    spacer.className = 'spacer';
+    inner.appendChild(spacer);
+  }
+  const btn = document.createElement('button');
+  btn.id = 'page-refresh';
+  btn.className = 'ghost';
+  btn.type = 'button';
+  btn.textContent = 'Refresh';
+  btn.addEventListener('click', () => runRefresh(btn));
+  spacer.appendChild(btn);
+}
+
+async function runRefresh(btn) {
+  if (!REFRESH_TICK || btn.disabled) return;
+  btn.disabled = true;
+  btn.textContent = 'Refreshing…';
+  try {
+    await REFRESH_TICK();
+    btn.textContent = 'Updated ✓';
+  } catch (err) {
+    console.error('[refresh]', err);
+    btn.textContent = 'Failed — try again';
+  } finally {
+    setTimeout(() => { btn.textContent = 'Refresh'; btn.disabled = false; }, 1500);
+  }
 }
 
 /** Fetch url; return parsed data only when it differs from snap[key]. */
@@ -104,8 +119,8 @@ async function renderLanding() {
       `<tr><td colspan="5" class="muted">Couldn’t load batches (${esc(err.message)}).</td></tr>`;
   }
 
-  // Keep the overview current without reloading the page.
-  startLiveRefresh(async () => {
+  // Header Refresh button re-pulls and repaints in place — no page reload.
+  registerRefresh(async () => {
     const fresh = await fetchIfChanged('commodities', '/api/commodities');
     if (fresh) paintLanding(fresh);
     try {
@@ -199,9 +214,9 @@ async function renderCustomers() {
 
   renderCustomerRows();
 
-  // Refresh silently; renderCustomerRows re-applies the current filters/sort,
-  // and the filter inputs themselves are never re-rendered.
-  startLiveRefresh(async () => {
+  // Header Refresh button; renderCustomerRows re-applies the current
+  // filters/sort, and the filter inputs themselves are never re-rendered.
+  registerRefresh(async () => {
     const fresh = await fetchIfChanged('customers', '/api/customers');
     if (!fresh) return;
     CUSTOMERS = fresh;
@@ -320,15 +335,21 @@ async function renderDetail() {
   SUBSTITUTIONS = [];
   renderItems();
 
-  // Silent refresh — but never while proration work is staged: re-rendering
-  // from fresh D365 data would fight the planner's in-progress allocations.
-  startLiveRefresh(async () => {
-    if (Object.keys(PRORATIONS).length || SUBSTITUTIONS.length) return;
+  // Header Refresh button. Staged proration work belongs to the planner —
+  // fresh D365 data would fight it, so refreshing asks before discarding.
+  registerRefresh(async () => {
+    const hadWork = Object.keys(PRORATIONS).length || SUBSTITUTIONS.length;
+    if (hadWork) {
+      if (!confirm('Refreshing re-pulls D365 data and discards your staged proration work. Continue?')) return;
+      PRORATIONS = {};
+      SUBSTITUTIONS = [];
+    }
     const fresh = await fetchIfChanged('detail', '/api/commodities/' + encodeURIComponent(id));
-    if (!fresh) return;
-    DETAIL = fresh;
-    paintDetailKpis();
-    renderItems();
+    if (fresh) DETAIL = fresh;
+    if (fresh || hadWork) {
+      paintDetailKpis();
+      renderItems();
+    }
   });
 
   document.getElementById('pp-strategy').addEventListener('change', e => {
