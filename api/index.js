@@ -15,11 +15,23 @@
 
 const { app } = require('@azure/functions');
 
+// Fail closed (SF-01): a hosted deployment must never run with auth silently
+// off. D365_CONFIG_MODE=env marks the Function App environment; local dev
+// (profiles from environments.json) keeps its no-sign-in convenience. A
+// missing/mis-named AUTH_* setting is a fatal misconfiguration, not a
+// pass-through.
+if (process.env.D365_CONFIG_MODE === 'env'
+    && !((process.env.AUTH_TENANT_ID || '').trim() && (process.env.AUTH_CLIENT_ID || '').trim())) {
+  throw new Error(
+    'AUTH_TENANT_ID and AUTH_CLIENT_ID must be set in hosted mode — refusing to start with authentication disabled.');
+}
+
 const portal = require('../server/portalService');
 const branding = require('../server/branding');
 const d365 = require('../server/d365Client');
 const config = require('../server/config');
 const { verifyBearer, hasAnyRole, ROLES } = require('../server/entraAuth');
+const rateLimit = require('../server/rateLimit');
 
 function json(status, body) { return { status, jsonBody: body }; }
 
@@ -27,20 +39,28 @@ function json(status, body) { return { status, jsonBody: body }; }
 const ANY_ROLE = [ROLES.ADMIN, ROLES.USER];
 
 /** Wrap a handler with Entra auth + role check + error translation
- *  (mirrors Express `route`). */
-function guarded(handler, roles = ANY_ROLE) {
+ *  (mirrors Express `route`). opts.limited applies the per-user rate limit
+ *  (SF-07) — used on the endpoints that publish to D365. */
+function guarded(handler, roles = ANY_ROLE, opts = {}) {
   return async (request, context) => {
     const auth = await verifyBearer(request.headers.get('authorization'));
     if (!auth.ok) return json(auth.status, { error: auth.error });
     if (!hasAnyRole(auth, roles)) {
       return json(403, { error: `Requires role: ${roles.join(' or ')}` });
     }
+    if (opts.limited && !rateLimit.allow(auth.user)) {
+      return json(429, { error: 'Too many requests — try again in a minute.' });
+    }
     try {
       return await handler(request, context);
     } catch (err) {
+      // 5xx = upstream (D365/Entra) failure whose message can leak internal
+      // hostnames and service names (SF-06): log full detail, return a
+      // generic message. 4xx messages are our own wording — safe to surface.
       const status = err.status && err.status >= 400 ? err.status : 502;
       context.error(`[D365] ${request.method} ${request.url} -> ${err.message}`);
-      return json(status, { error: err.message });
+      const clientMsg = status >= 500 ? 'Upstream service error — see server logs.' : err.message;
+      return json(status, { error: clientMsg });
     }
   };
 }
@@ -83,7 +103,7 @@ app.http('prorateSend', {
     const body = await request.json().catch(() => ({}));
     const result = await portal.sendBatch(body.lines);
     return json(result.ok ? 202 : 502, result);
-  }),
+  }, ANY_ROLE, { limited: true }),
 });
 
 app.http('substituteSend', {
@@ -94,7 +114,7 @@ app.http('substituteSend', {
     const body = await request.json().catch(() => ({}));
     const result = await portal.sendSubstitutions(body.substitutions);
     return json(result.ok ? 202 : 502, result);
-  }),
+  }, ANY_ROLE, { limited: true }),
 });
 
 // Branding is read-only when hosted — edit server/data/branding.json in the

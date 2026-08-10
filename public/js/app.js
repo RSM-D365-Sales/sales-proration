@@ -615,10 +615,29 @@ async function prorateItem(itemId, btn) {
   if (btn) { btn.disabled = true; btn.textContent = '…'; }
   try {
     PRORATIONS[itemId] = await jpost('/api/prorate', { strategy, itemId, alpha });
+    noteHistoryDegraded(PRORATIONS[itemId]);
     renderItems();
   } catch (err) {
     alert(`Proration failed for ${itemId}: ${err.message}`);
     renderItems();
+  }
+}
+
+// R-11: History-Aware silently degrades to Weighted when the D365 feed has no
+// fill-rate history — say so instead of letting planners assume otherwise.
+function noteHistoryDegraded(result) {
+  const wrap = document.getElementById('pp-controls');
+  if (!wrap) return;
+  let note = document.getElementById('ha-note');
+  const degraded = result && result.strategy === 'HistoryAware' && result.historyAvailable === false;
+  if (degraded && !note) {
+    note = document.createElement('div');
+    note.id = 'ha-note';
+    note.className = 'muted';
+    note.textContent = 'No fill-rate history in the D365 feed yet — History-Aware ran as Weighted.';
+    wrap.appendChild(note);
+  } else if (!degraded && note) {
+    note.remove();
   }
 }
 
@@ -635,6 +654,7 @@ async function prorateAll() {
     const results = await Promise.all(
       targets.map(it => jpost('/api/prorate', { strategy, itemId: it.itemId, alpha })));
     targets.forEach((it, i) => { PRORATIONS[it.itemId] = results[i]; });
+    noteHistoryDegraded(results[0]);
     renderItems();
   } catch (err) {
     alert(`Prorate all failed: ${err.message}`);

@@ -122,6 +122,9 @@ async function runProration({ strategy, itemId, siteId, warehouseId, alpha } = {
     strategy,
     itemId,
     available,
+    // R-11: lets the UI disclose when HistoryAware silently degrades to
+    // Weighted because the D365 feed carries no fill-rate history.
+    historyAvailable: Object.keys(customerFillHistory || {}).length > 0,
     totalRequested: lines.reduce((s, l) => s + l.requestedQty, 0),
     totalAllocated: results.reduce((s, l) => s + l.allocatedQty, 0),
     lines: results,

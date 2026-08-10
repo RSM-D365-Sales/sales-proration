@@ -7,11 +7,35 @@ const config = require('./config');
 const branding = require('./branding');
 const portal = require('./portalService');
 const { authConfig, requireAuth, requireRole, ROLES } = require('./entraAuth');
+const { limited } = require('./rateLimit');
 const { missingD365Settings } = config;
 const { publishBatch, readOutbox } = require('./messageQueue');
 
 const app = express();
 app.use(express.json({ limit: '2mb' }));
+
+// Security response headers (SF-04) — mirror of public/_headers, which covers
+// the Cloudflare Pages deployment; this covers the locally-served SPA + API.
+// script-src stays strict ('self') — page boot lives in js/boot.js, not
+// inline; style-src allows inline because branding injects style attributes.
+app.use((req, res, next) => {
+  res.setHeader('Content-Security-Policy', [
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com",
+    "img-src 'self' data:",
+    "connect-src 'self' https://login.microsoftonline.com https://prorate-fn-wmv50.azurewebsites.net",
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+  ].join('; '));
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  next();
+});
 
 // CORS — only needed when the front-end is served from another origin (e.g.
 // GitHub Pages). Set CORS_ORIGIN to that origin (comma-separate for several).
@@ -50,9 +74,13 @@ app.use(express.static(path.join(__dirname, '..', 'public')));
 function route(handler) {
   return (req, res) => {
     Promise.resolve(handler(req, res)).catch(err => {
+      // 5xx = upstream (D365/Entra) failure whose message can leak internal
+      // hostnames and service names (SF-06): log full detail, return a
+      // generic message. 4xx messages are our own wording — safe to surface.
       const status = err.status && err.status >= 400 ? err.status : 502;
       console.error(`[D365] ${req.method} ${req.originalUrl} -> ${err.message}`);
-      res.status(status).json({ error: err.message });
+      const clientMsg = status >= 500 ? 'Upstream service error — see server logs.' : err.message;
+      res.status(status).json({ error: clientMsg });
     });
   };
 }
@@ -105,7 +133,9 @@ app.post('/api/batches', (req, res) => {
   const batchMessage = {
     batchId: crypto.randomUUID(),
     createdUtc: new Date().toISOString(),
-    createdBy: createdBy || 'unknown@local',
+    // Audit integrity (SF-02): the validated token identity wins — the body
+    // value is only a fallback for local no-auth development.
+    createdBy: req.user || createdBy || 'unknown@local',
     strategy: strategy || 'Manual',
     commodityId: commodityId || null,
     lines,
@@ -121,14 +151,14 @@ app.get('/api/batches', (req, res) => res.json(readOutbox()));
 // The whole approval is published as a single SysMessageService.SendMessage on
 // queue `rsmSalesProrateAccelerator`: a head record (BatchId) plus a Records
 // array of allocated sales lines, consumed directly by the message processor.
-app.post('/api/prorate/send', route(async (req, res) => {
+app.post('/api/prorate/send', limited(), route(async (req, res) => {
   const result = await portal.sendBatch((req.body || {}).lines);
   res.status(result.ok ? 202 : 502).json(result);
 }));
 
 // Staged item substitutions — separate message type
 // (rsmSalesSubstituteAcceleratorMessage), same queue, own D365 consumer.
-app.post('/api/substitute/send', route(async (req, res) => {
+app.post('/api/substitute/send', limited(), route(async (req, res) => {
   const result = await portal.sendSubstitutions((req.body || {}).substitutions);
   res.status(result.ok ? 202 : 502).json(result);
 }));

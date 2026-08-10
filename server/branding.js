@@ -27,6 +27,18 @@ const DEFAULTS = {
 
 const HEX = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 
+// SF-05: a logo must be a site-relative path or an image data URL — anything
+// else (javascript:, data:text/html, remote URLs) is dropped rather than
+// stored and later injected into the sidebar markup.
+const DATA_IMAGE = /^data:image\/(png|jpeg|svg\+xml|gif|webp);base64,/;
+
+function cleanLogo(logo) {
+  if (typeof logo !== 'string' || !logo) return null;
+  const s = logo.slice(0, 500000); // cap data URLs ~0.5MB
+  if (s.startsWith('/') || DATA_IMAGE.test(s)) return s;
+  return null;
+}
+
 function cleanColor(input, fallback) {
   const v = (input ?? '').toString().trim();
   return HEX.test(v) ? v : fallback;
@@ -39,7 +51,7 @@ function normalize(input = {}, base = DEFAULTS) {
   return {
     brandName: (input.brandName ?? base.brandName ?? '').toString().trim().slice(0, 60) || DEFAULTS.brandName,
     tagline:   (input.tagline ?? base.tagline ?? '').toString().trim().slice(0, 120),
-    logo:      typeof logo === 'string' ? logo.slice(0, 500000) : null, // cap data URLs ~0.5MB
+    logo:      cleanLogo(logo),
     theme:     THEMES.includes(input.theme) ? input.theme : (THEMES.includes(base.theme) ? base.theme : DEFAULTS.theme),
     colors: {
       // An invalid value keeps the current (base) color rather than snapping
