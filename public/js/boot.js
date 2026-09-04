@@ -2,13 +2,17 @@
 // keep script-src at 'self' with no 'unsafe-inline' (SF-04). Loaded last on
 // every page; calls the page's render function from app.js / setup.js.
 (function () {
-  const page = (location.pathname.split('/').pop() || 'index.html').toLowerCase();
+  // Cloudflare Pages 308-redirects "customers.html" to "/customers", so the
+  // last path segment arrives with or without ".html" depending on the host —
+  // dispatch on the extensionless name.
+  const page = (location.pathname.split('/').pop() || 'index')
+    .toLowerCase().replace(/\.html$/, '');
   const boot = {
-    'index.html': () => renderLanding(),
+    'index': () => renderLanding(),
     '': () => renderLanding(),
-    'commodity.html': () => renderDetail(),
-    'customers.html': () => renderCustomers(),
-    'setup.html': () => renderSetup(),
+    'commodity': () => renderDetail(),
+    'customers': () => renderCustomers(),
+    'setup': () => renderSetup(),
   }[page];
   if (boot) boot();
 })();
