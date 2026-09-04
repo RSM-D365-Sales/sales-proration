@@ -159,9 +159,15 @@ app.http('setupTest', {
   handler: guarded(async () => json(200, await d365.testConnection()), [ROLES.ADMIN]),
 });
 
-// The local-outbox demo endpoints (/api/batches) are intentionally absent:
-// serverless storage is ephemeral. The landing page tolerates this (its
-// batches table is best-effort).
+// The local-outbox batch history is a local-dev feature — serverless storage
+// is ephemeral, so hosted batches always read as empty. An empty list (rather
+// than no route) keeps the landing page's console free of 404 noise.
+app.http('batches', {
+  methods: ['GET'],
+  route: 'batches',
+  authLevel: 'anonymous',
+  handler: guarded(async () => json(200, [])),
+});
 
 app.http('health', {
   methods: ['GET'],

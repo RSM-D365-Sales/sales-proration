@@ -64,7 +64,7 @@ function renderSidebar(b, active) {
     <div class="nav__user">
       <span class="nav__user-name" title="${escAttr(acct.username)}">${escAttr(acct.name)}</span>
       ${roleLabel ? `<span class="nav__user-role" style="display:block;font-size:.72rem;opacity:.65">${escAttr(roleLabel)}</span>` : ''}
-      <button class="nav__signout" type="button" onclick="AUTH.signOut()">Sign out</button>
+      <button class="nav__signout" type="button">Sign out</button>
     </div>` : '';
   document.getElementById('sidebar').innerHTML = `
     <a class="brand" href="index.html">
@@ -84,6 +84,9 @@ function renderSidebar(b, active) {
     ${userHtml}
     <div class="nav__foot">D365 F&amp;SCM companion</div>
   `;
+  // Wired here, not via an inline onclick — the CSP blocks inline handlers.
+  document.querySelector('#sidebar .nav__signout')
+    ?.addEventListener('click', () => window.AUTH.signOut());
 }
 
 /** Set the page header (title + optional sub/crumb HTML + right-aligned actions HTML). */

@@ -141,7 +141,16 @@ function paintLanding(rows) {
     ${kpi('Available supply', fmt(totalSupply))}
     ${kpi('Overall fill', pct(fill), attention ? `${attention} need attention` : 'All on track', true)}
   `;
-  document.getElementById('cards').innerHTML = rows.map(commodityCard).join('');
+  const cards = document.getElementById('cards');
+  cards.innerHTML = rows.map(commodityCard).join('');
+  // Listeners, not inline on*= attributes — the CSP (script-src 'self',
+  // no 'unsafe-inline') blocks inline event handlers.
+  cards.querySelectorAll('.card[data-id]').forEach(card =>
+    card.addEventListener('click', () => {
+      location.href = 'commodity.html?id=' + encodeURIComponent(card.dataset.id);
+    }));
+  cards.querySelectorAll('img').forEach(img =>
+    img.addEventListener('error', () => { img.src = 'img/commodities/_fallback.svg'; }, { once: true }));
 }
 
 function paintBatches(batches) {
@@ -164,12 +173,10 @@ function commodityCard(r) {
   const st = STATUS[r.status] || STATUS.OK;
   const fillW = Math.min(100, Math.max(0, r.fillRate * 100));
   return `
-    <button class="card" style="--card-tint:${commodityTint(r)}"
-            onclick="location.href='commodity.html?id=${encodeURIComponent(r.id)}'">
+    <button class="card" style="--card-tint:${commodityTint(r)}" data-id="${esc(r.id)}">
       <div class="card__media">
         <span class="card__status"><span class="chip ${r.status}">${st.label}</span></span>
-        <img src="${commodityIconUrl(r)}" alt="${esc(r.name)}" loading="lazy"
-             onerror="this.onerror=null;this.src='img/commodities/_fallback.svg'">
+        <img src="${commodityIconUrl(r)}" alt="${esc(r.name)}" loading="lazy">
       </div>
       <div class="card__body">
         <div class="card__title">${esc(r.name)}</div>
