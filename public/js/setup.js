@@ -27,7 +27,7 @@ function banner(msg, kind = 'ok') {
 function esc(s) { return String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
 async function renderSetup() {
-  await initShell({ active: 'setup' });
+  try { await initShell({ active: 'setup' }); } catch (e) { console.error('[shell]', e); }
   // Setup is Proration.Admin only — bounce other roles to the landing page.
   // Navigation convenience; the API rejects non-admin /setup calls with 403.
   if (!AUTH.hasRole('Proration.Admin')) { location.replace('index.html'); return; }

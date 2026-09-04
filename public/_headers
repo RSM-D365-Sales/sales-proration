@@ -8,3 +8,13 @@
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=()
+
+# Code files must revalidate on every load (cheap 304s via etag) — Cloudflare's
+# default 4-hour asset cache can keep stale JS live long after a deploy, which
+# renders pages as dead static shells. Fonts keep the long default.
+/js/*
+  Cache-Control: public, max-age=0, must-revalidate
+/styles/*
+  Cache-Control: public, max-age=0, must-revalidate
+/config.js
+  Cache-Control: public, max-age=0, must-revalidate
