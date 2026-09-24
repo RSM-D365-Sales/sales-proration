@@ -160,7 +160,8 @@ public/                     Static SPA (no build step)
   styles/skin-bluestem.css  bluestem / RSM show brand: top title ribbon + RSM palette
   img/brand/                bluestem + RSM logo assets (from Blustem-company-details)
   fonts/                    Self-hosted Fraunces, IBM Plex Sans, Poppins (woff2)
-  js/shell.js               Shared sidebar shell + applies branding/skin
+  js/theme-boot.js          Sync <head> script: restores cached skin/colors before first paint
+  js/shell.js               Shared sidebar shell + applies branding/skin (caches it for theme-boot)
   js/icons.js               Commodity → SVG icon resolver (override + keywords)
   js/app.js                 Landing dashboard + commodity detail
   js/setup.js               Setup: environments + Branding tab

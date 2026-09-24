@@ -213,8 +213,8 @@ function syncBrandingPreview() {
     accent: document.getElementById('b-accent').value,
     sidebar: document.getElementById('b-sidebar').value,
   };
-  applyBranding(BRAND_DRAFT);             // tokens + skin live
-  renderSidebarFromDraft();               // re-render sidebar text/logo/colors
+  applyBranding(BRAND_DRAFT, { persist: false }); // tokens + skin live; unsaved, so don't cache
+  renderSidebarFromDraft();                        // re-render sidebar text/logo/colors
 }
 
 // Re-render the sidebar with the draft (shell.js owns the markup).
@@ -262,7 +262,7 @@ async function saveBranding() {
 function revertBranding() {
   BRAND_DRAFT = JSON.parse(JSON.stringify(BRAND_SAVED));
   fillBrandingForm(BRAND_DRAFT);
-  applyBranding(BRAND_DRAFT);
+  applyBranding(BRAND_DRAFT); // saved state — safe to cache
   renderSidebarFromDraft();
   banner('Reverted to last saved branding.');
 }

@@ -11,6 +11,22 @@
 
 window.BRANDING = null;
 
+// Last branding applied, kept in localStorage so js/theme-boot.js (sync, in
+// <head>) can restore the skin before first paint and initShell can draw the
+// sidebar immediately instead of after the auth + /api/branding round-trip.
+const BRAND_CACHE_KEY = 'spa.branding';
+
+function readBrandCache() {
+  try {
+    const b = JSON.parse(localStorage.getItem(BRAND_CACHE_KEY) || 'null');
+    return b && typeof b === 'object' && typeof b.brandName === 'string' ? b : null;
+  } catch { return null; }
+}
+
+function writeBrandCache(b) {
+  try { localStorage.setItem(BRAND_CACHE_KEY, JSON.stringify(b)); } catch { /* private mode / quota — cosmetic only */ }
+}
+
 const NAV_ICONS = {
   plan: '<path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/>',
   customers: '<path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>',
@@ -29,13 +45,19 @@ function initials(name) {
 
 function escAttr(s) { return String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
-/** Apply brand colors + skin to the document. Safe to call repeatedly. */
-function applyBranding(b) {
+/** Apply brand colors + skin to the document. Safe to call repeatedly.
+ *  `persist` (default true) also refreshes the pre-paint cache; the Setup
+ *  page's live preview passes false so an unsaved draft never leaks into the
+ *  next page load. */
+function applyBranding(b, { persist = true } = {}) {
   window.BRANDING = b;
+  if (persist) writeBrandCache(b);
   const root = document.documentElement;
   root.dataset.theme = b.theme || 'editorial';
-  if (b.colors?.accent) root.style.setProperty('--accent', b.colors.accent);
-  if (b.colors?.sidebar) root.style.setProperty('--sidebar-bg', b.colors.sidebar);
+  // Unset colors fall back to the skin's CSS defaults (an empty custom
+  // property would make every var(--accent) invalid, so remove, don't blank).
+  if (b.colors?.accent) root.style.setProperty('--accent', b.colors.accent); else root.style.removeProperty('--accent');
+  if (b.colors?.sidebar) root.style.setProperty('--sidebar-bg', b.colors.sidebar); else root.style.removeProperty('--sidebar-bg');
   const base = document.title.includes('—') ? document.title.split('—').pop().trim() : document.title;
   document.title = `${b.brandName} — ${base}`;
   if (b.favicon) {
@@ -46,12 +68,14 @@ function applyBranding(b) {
 }
 
 async function loadBranding() {
-  if (window.BRANDING) return window.BRANDING;
   try {
     const r = await window.AUTH.fetch('/api/branding');
     if (r.ok) return r.json();
-  } catch { /* fall back to defaults below */ }
-  return { brandName: 'Sales Proration', tagline: 'Proration Accelerator', logo: null, favicon: null, sponsor: null, theme: 'editorial', colors: {} };
+  } catch { /* fall back below */ }
+  // API unreachable: keep whatever the cache restored rather than snapping
+  // back to the unbranded defaults mid-demo.
+  return readBrandCache()
+    || { brandName: 'Sales Proration', tagline: 'Proration Accelerator', logo: null, favicon: null, sponsor: null, theme: 'editorial', colors: {} };
 }
 
 function brandMark(b) {
@@ -120,6 +144,12 @@ function setPageHead({ title, sub, crumbHtml, actionsHtml } = {}) {
 }
 
 async function initShell({ active } = {}) {
+  // 1. Paint the cached brand right away (theme-boot.js already set the
+  //    tokens; this fills the sidebar/ribbon so the chrome isn't empty).
+  const cached = readBrandCache();
+  if (cached) { applyBranding(cached, { persist: false }); renderSidebar(cached, active); }
+  // 2. Sign in (may redirect), fetch the live branding, and reconcile — the
+  //    user block only renders once the account is known, so always re-draw.
   await window.AUTH.ensureSignedIn(); // no-op when auth isn't configured
   const b = await loadBranding();
   applyBranding(b);
