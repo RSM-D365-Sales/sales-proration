@@ -38,6 +38,11 @@ function applyBranding(b) {
   if (b.colors?.sidebar) root.style.setProperty('--sidebar-bg', b.colors.sidebar);
   const base = document.title.includes('—') ? document.title.split('—').pop().trim() : document.title;
   document.title = `${b.brandName} — ${base}`;
+  if (b.favicon) {
+    let link = document.querySelector('link[rel="icon"]');
+    if (!link) { link = document.createElement('link'); link.rel = 'icon'; document.head.appendChild(link); }
+    link.href = b.favicon;
+  }
 }
 
 async function loadBranding() {
@@ -46,7 +51,7 @@ async function loadBranding() {
     const r = await window.AUTH.fetch('/api/branding');
     if (r.ok) return r.json();
   } catch { /* fall back to defaults below */ }
-  return { brandName: 'Sales Proration', tagline: 'Proration Accelerator', logo: null, theme: 'editorial', colors: {} };
+  return { brandName: 'Sales Proration', tagline: 'Proration Accelerator', logo: null, favicon: null, sponsor: null, theme: 'editorial', colors: {} };
 }
 
 function brandMark(b) {
@@ -62,9 +67,18 @@ function renderSidebar(b, active) {
   const roleLabel = (window.AUTH?.roles() || []).map(r => roleLabels[r] || r).join(', ');
   const userHtml = acct ? `
     <div class="nav__user">
+      <span class="nav__avatar" aria-hidden="true">${escAttr(initials(acct.name))}</span>
       <span class="nav__user-name" title="${escAttr(acct.username)}">${escAttr(acct.name)}</span>
       ${roleLabel ? `<span class="nav__user-role" style="display:block;font-size:.72rem;opacity:.65">${escAttr(roleLabel)}</span>` : ''}
       <button class="nav__signout" type="button">Sign out</button>
+    </div>` : '';
+  // Optional sponsor lockup (e.g. "Powered by" + RSM mark for the bluestem
+  // demo brand). Absent from branding.json = not rendered, so plain
+  // white-label customers never see it.
+  const sponsorHtml = b.sponsor?.logo ? `
+    <div class="nav__sponsor">
+      <span class="nav__sponsor-label">${escAttr(b.sponsor.label || 'Powered by')}</span>
+      <img src="${escAttr(b.sponsor.logo)}" alt="${escAttr(b.sponsor.alt || '')}">
     </div>` : '';
   document.getElementById('sidebar').innerHTML = `
     <a class="brand" href="index.html">
@@ -81,6 +95,7 @@ function renderSidebar(b, active) {
       ${window.AUTH?.hasRole('Proration.Admin') ? item('setup', 'Setup', 'setup.html') : ''}
     </nav>
     <span class="nav__spacer"></span>
+    ${sponsorHtml}
     ${userHtml}
     <div class="nav__foot">D365 F&amp;SCM companion</div>
   `;

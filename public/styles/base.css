@@ -99,13 +99,15 @@ h1, h2, h3 { font-family: var(--font-display); color: var(--ink); font-weight: v
 }
 .brand:hover { text-decoration: none; }
 .brand__logo {
-  width: 36px; height: 36px; flex: none;
+  /* Height-locked so a square tile logo stays 36x36 and a wide wordmark
+     (e.g. the bluestem lockup) can grow sideways up to max-width. */
+  height: 36px; width: auto; min-width: 36px; max-width: 170px; flex: none;
   border-radius: 9px;
   object-fit: contain;
   background: color-mix(in srgb, #fff 13%, transparent);
   display: grid; place-items: center;
 }
-.brand__logo img { width: 100%; height: 100%; object-fit: contain; border-radius: inherit; }
+.brand__logo img { height: 100%; width: auto; max-width: 100%; object-fit: contain; border-radius: inherit; }
 .brand__mark { /* fallback monogram when no logo set */
   width: 36px; height: 36px; flex: none; border-radius: 9px;
   display: grid; place-items: center;
@@ -153,6 +155,24 @@ h1, h2, h3 { font-family: var(--font-display); color: var(--ink); font-weight: v
   font-size: .8rem; font-weight: 600;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+.nav__avatar {
+  /* Initials avatar — hidden in the vertical sidebar (the pill already
+     carries the name), shown by ribbon-style skins. */
+  display: none; place-items: center; flex: none;
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--accent); color: var(--accent-ink);
+  font-size: .7rem; font-weight: 700; letter-spacing: .02em;
+}
+/* Sponsor lockup ("Powered by" + logo) — only rendered when branding.json
+   sets `sponsor`; sits above the footer in the sidebar, in the ribbon on
+   ribbon-style skins. */
+.nav__sponsor {
+  display: flex; align-items: center; gap: .45rem;
+  padding: .6rem .7rem .2rem;
+  border-top: 1px solid color-mix(in srgb, #fff 9%, transparent);
+}
+.nav__sponsor-label { font-size: 11px; color: color-mix(in srgb, #fff 55%, var(--sidebar-bg)); white-space: nowrap; }
+.nav__sponsor img { height: 20px; width: auto; display: block; }
 .nav__signout {
   padding: .2rem .55rem; font-size: .72rem; font-weight: 600;
   background: transparent; color: color-mix(in srgb, #fff 60%, var(--sidebar-bg));
@@ -417,7 +437,7 @@ code { background: var(--accent-soft); padding: 1px 6px; border-radius: 5px; fon
 /* ---- Responsive ---------------------------------------------------------- */
 
 @media (max-width: 860px) {
-  .layout { grid-template-columns: 1fr; }
+  .layout { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
   .sidebar {
     position: static; height: auto; flex-direction: row; align-items: center;
     gap: .25rem; overflow-x: auto; padding: .6rem .75rem;
@@ -426,7 +446,7 @@ code { background: var(--accent-soft); padding: 1px 6px; border-radius: 5px; fon
   .brand__tag { display: none; }
   .nav { flex-direction: row; }
   .nav__item.is-active::before { display: none; }
-  .nav__foot, .nav__spacer, .nav__user { display: none; }
+  .nav__foot, .nav__spacer, .nav__user, .nav__sponsor { display: none; }
   .kpis { grid-template-columns: repeat(2, 1fr); }
   .kpi:nth-child(n+3) { border-top: 1px solid var(--line); }
   .kpi:nth-child(odd) { border-left: 0; }

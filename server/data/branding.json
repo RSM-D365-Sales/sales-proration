@@ -1,10 +1,16 @@
 {
   "brandName": "Sales Proration",
-  "tagline": "Proration Accelerator for D365 F&SCM",
-  "logo": null,
-  "theme": "editorial",
+  "tagline": "Proration Accelerator",
+  "logo": "img/brand/bluestem_logo_on_midnight_ribbon.png",
+  "favicon": "img/brand/bluestem_icon_blue.png",
+  "sponsor": {
+    "label": "Powered by",
+    "logo": "img/brand/rsmus-logo-white.png",
+    "alt": "RSM"
+  },
+  "theme": "bluestem",
   "colors": {
-    "accent": "#295bd1",
-    "sidebar": "#4e7461"
+    "accent": "#009CDE",
+    "sidebar": "#00153D"
   }
 }

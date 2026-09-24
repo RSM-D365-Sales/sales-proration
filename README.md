@@ -157,6 +157,9 @@ public/                     Static SPA (no build step)
   styles/base.css           Design system (tokens + components, color-driven)
   styles/skin-editorial.css Default "produce-brand" front-end
   styles/skin-enterprise.css Alternate "refined enterprise" front-end
+  styles/skin-bluestem.css  bluestem / RSM show brand: top title ribbon + RSM palette
+  img/brand/                bluestem + RSM logo assets (from Blustem-company-details)
+  fonts/                    Self-hosted Fraunces, IBM Plex Sans, Poppins (woff2)
   js/shell.js               Shared sidebar shell + applies branding/skin
   js/icons.js               Commodity → SVG icon resolver (override + keywords)
   js/app.js                 Landing dashboard + commodity detail
@@ -178,9 +181,25 @@ ways:
 
 Colors flow through CSS custom properties: a single `accent` drives buttons, links, focus
 rings, chips and tints via `color-mix()`, so one value re-themes the app. **Skins** are
-swappable front-ends selected by `theme` (`editorial` | `enterprise`) — add another by
-copying a `styles/skin-*.css`, changing its tokens, and registering the name in
+swappable front-ends selected by `theme` (`editorial` | `enterprise` | `bluestem`) — add
+another by copying a `styles/skin-*.css`, changing its tokens, and registering the name in
 `server/branding.js` (`THEMES`) and the Setup picker.
+
+Optional `branding.json` fields: `favicon` (site path or data URL, same rules as `logo`)
+and `sponsor` (`{ label, logo, alt }`) — when set, the shell renders a "Powered by" lockup
+next to the user block. Leave `sponsor` null for a plain white-label customer.
+
+### bluestem (IFPA show brand)
+
+The committed `branding.json` targets **bluestem Fresh Produce**, the mock company used
+for RSM's IFPA demos — see `../Blustem-company-details/BRAND_GUIDE.md`. The `bluestem`
+skin follows that guide's app-header pattern: it re-flows the sidebar into a 48px Midnight
+(`#00153D`) title ribbon with the wordmark left, app name, nav, and the required
+"Powered by" + RSM mark right of the ribbon next to the user avatar. Palette is
+rsmus.com's (RSM Blue `#009CDE` accent, RSM Green / Harvest Amber / Signal Red for
+states, Light Sky + Fog tints); headings are Poppins SemiBold over Segoe UI body.
+`img/brand/bluestem_logo_on_midnight_ribbon.png` is the guide's logo with the
+"FRESH PRODUCE" line painted out and cropped to mark + wordmark for the 28px ribbon slot.
 
 ## Commodity imagery
 

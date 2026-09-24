@@ -1,0 +1,177 @@
+/* Skin: bluestem Fresh Produce (IFPA show edition).
+   Follows Blustem-company-details/BRAND_GUIDE.md: palette borrowed from
+   rsmus.com (RSM Blue / Midnight / RSM Green, Fog + Light Sky tints, Harvest
+   Amber + Signal Red for states), Poppins SemiBold headings over Segoe UI
+   body, and the "app header pattern" — a 48px Midnight title ribbon with the
+   wordmark on the left and the "Powered by RSM" sponsor lockup on the right,
+   next to the user avatar.
+
+   Structurally this skin re-flows the shell's <aside class="sidebar"> into
+   that top ribbon at every width (base.css already does it below 860px), so
+   no page markup changes. Accent/sidebar hex values still come from
+   branding.json; the guide's values are RSM Blue #009CDE and Midnight #00153D. */
+
+:root[data-theme="bluestem"] {
+  /* Neutrals — Fog page ground, white cards, Midnight ink, Mid Grey secondary. */
+  --bg: #f2f3f4;
+  --surface: #ffffff;
+  --surface-2: #f7f8f9;
+  --ink: #00153d;
+  --ink-soft: #2f3f5f;
+  --muted: #6f7377;          /* Mid Grey #888B8D darkened one step for 4.5:1 on white */
+  --line: #e1e4e8;
+  --line-strong: #c9d1db;
+
+  /* Tints from the guide (Light Sky = RSM Blue at 10%). */
+  --accent-soft: #e5f5fc;
+  --accent-line: #b9e3f6;
+
+  /* Status — RSM Green / Harvest Amber / Signal Red. Text variants are
+     darkened for legibility on light chips; fills use the pure brand colors. */
+  --ok: #2f7a28;    --ok-bg: #e6f3e4;
+  --warn: #8a5f00;  --warn-bg: #fdf1d3;
+  --bad: #b32b24;   --bad-bg: #fae2e0;
+  --ok-fill: #3f9c35;
+  --warn-fill: #f2a900;
+  --bad-fill: #d0342c;
+
+  /* Shape & type — rsmus.com is square-ish and flat. */
+  --radius: 6px;
+  --radius-sm: 4px;
+  --shadow-sm: 0 1px 2px rgba(0, 21, 61, .06);
+  --shadow-md: 0 6px 18px rgba(0, 21, 61, .12);
+
+  --font-sans: "Segoe UI", -apple-system, system-ui, Roboto, Helvetica, Arial, sans-serif;
+  --font-display: "Poppins", "Segoe UI Semibold", "Segoe UI", system-ui, sans-serif;
+  --display-weight: 600;
+  --display-tracking: 0;
+
+  --ribbon-h: 48px;
+}
+
+/* ---- Title ribbon (the sidebar, re-flowed) -------------------------------- */
+
+/* Ribbon row is fixed-height; content takes the rest (without explicit rows
+   a short page splits the 100vh min-height evenly between the two rows). */
+:root[data-theme="bluestem"] .layout { grid-template-columns: 1fr; grid-template-rows: var(--ribbon-h) 1fr; }
+
+:root[data-theme="bluestem"] .sidebar {
+  position: sticky; top: 0; z-index: 20;
+  height: var(--ribbon-h); min-height: var(--ribbon-h);
+  flex-direction: row; align-items: center;
+  gap: .25rem;
+  padding: 0 1rem 0 .85rem;
+  overflow: visible;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, .06), 0 2px 8px rgba(0, 21, 61, .25);
+}
+
+:root[data-theme="bluestem"] .brand {
+  border: 0; margin: 0 1.1rem 0 0; padding: 0;
+  gap: .8rem;
+}
+:root[data-theme="bluestem"] .brand__logo {
+  height: 28px; width: auto; min-width: 0; max-width: 200px;
+  background: none; border-radius: 0;
+}
+:root[data-theme="bluestem"] .brand__logo img { height: 28px; width: auto; border-radius: 0; }
+:root[data-theme="bluestem"] .brand__mark { width: 28px; height: 28px; border-radius: 6px; font-size: .85rem; }
+:root[data-theme="bluestem"] .brand__name {
+  font-family: var(--font-display); font-weight: 600; font-size: .95rem;
+  letter-spacing: 0; white-space: nowrap;
+  padding-left: .95rem; border-left: 1px solid rgba(255, 255, 255, .18);
+}
+:root[data-theme="bluestem"] .brand__tag { display: none; }
+
+:root[data-theme="bluestem"] .nav { flex-direction: row; margin: 0; gap: 2px; align-self: stretch; align-items: stretch; }
+:root[data-theme="bluestem"] .nav__item {
+  padding: 0 .8rem; border-radius: 0;
+  font-size: .86rem; font-weight: 500;
+  color: #c9d1db;
+  align-items: center;
+}
+:root[data-theme="bluestem"] .nav__item:hover { background: rgba(255, 255, 255, .06); color: #fff; }
+:root[data-theme="bluestem"] .nav__item.is-active { background: transparent; color: #fff; font-weight: 600; }
+:root[data-theme="bluestem"] .nav__item.is-active::before {
+  /* Active state = RSM Blue underline in the ribbon, not a left rail. */
+  left: .8rem; right: .8rem; top: auto; bottom: 0; width: auto; height: 3px;
+  border-radius: 3px 3px 0 0;
+}
+:root[data-theme="bluestem"] .nav__item .ic { width: 16px; height: 16px; }
+:root[data-theme="bluestem"] .nav__item.is-active .ic { color: var(--accent); }
+:root[data-theme="bluestem"] .nav__foot { display: none; }
+
+/* RSM sponsor mark — right end, divider, "Powered by" 11px + white logo,
+   immediately left of the user avatar. */
+:root[data-theme="bluestem"] .nav__sponsor {
+  border-top: 0; border-left: 1px solid rgba(255, 255, 255, .18);
+  padding: 0 1rem; margin: 0; height: 24px;
+  gap: .5rem; align-self: center;
+}
+:root[data-theme="bluestem"] .nav__sponsor-label { font-size: 11px; color: #c9d1db; font-family: var(--font-sans); }
+:root[data-theme="bluestem"] .nav__sponsor img { height: 22px; }
+
+/* User block becomes avatar + name, no pill. */
+:root[data-theme="bluestem"] .nav__user {
+  background: transparent; padding: 0 0 0 .25rem; margin: 0; gap: .6rem; border-radius: 0;
+  flex-direction: row; flex-wrap: nowrap; align-items: center;
+}
+:root[data-theme="bluestem"] .nav__avatar {
+  display: grid; width: 30px; height: 30px; font-size: .72rem;
+  background: var(--accent); color: #fff;
+}
+:root[data-theme="bluestem"] .nav__user-name { color: #fff; font-size: .82rem; max-width: 12rem; }
+:root[data-theme="bluestem"] .nav__user-role { display: none !important; }
+:root[data-theme="bluestem"] .nav__signout { border-color: rgba(255, 255, 255, .28); color: #fff; }
+
+/* ---- Page chrome ---------------------------------------------------------- */
+
+:root[data-theme="bluestem"] .pagehead { padding: 1.15rem clamp(1rem, 3vw, 2rem) 1.05rem; }
+:root[data-theme="bluestem"] .pagehead h1 { font-size: 1.35rem; color: var(--ink); }
+:root[data-theme="bluestem"] .pagehead__crumb { color: var(--muted); }
+:root[data-theme="bluestem"] .section-title { color: var(--ink); }
+:root[data-theme="bluestem"] .kpi .value { font-size: 1.6rem; color: var(--ink); }
+:root[data-theme="bluestem"] .kpi.accent { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+:root[data-theme="bluestem"] .kpi.accent .value { color: #007bb0; }
+
+/* Cards: flatter, tinted media band keeps the commodity color. */
+:root[data-theme="bluestem"] .card { box-shadow: none; }
+:root[data-theme="bluestem"] .card:hover { transform: none; box-shadow: var(--shadow-md); border-color: var(--accent-line); }
+:root[data-theme="bluestem"] .card__media { aspect-ratio: 21 / 9; }
+:root[data-theme="bluestem"] .card__media img { max-width: 84px; width: 40%; }
+:root[data-theme="bluestem"] .card__title { font-size: 1.02rem; }
+
+/* Tables: Fog header band, Light Sky hover/selection (guide: selected rows). */
+:root[data-theme="bluestem"] .grid { box-shadow: none; }
+:root[data-theme="bluestem"] .grid thead th { background: var(--surface-2); color: var(--ink-soft); }
+:root[data-theme="bluestem"] .grid tbody tr:hover { background: var(--surface-2); }
+:root[data-theme="bluestem"] .grid--clickable tbody tr:hover { background: var(--accent-soft); }
+:root[data-theme="bluestem"] .grid tbody tr:nth-child(even) { background: color-mix(in srgb, var(--bg) 45%, var(--surface)); }
+:root[data-theme="bluestem"] .grid tbody tr:nth-child(even):hover { background: var(--surface-2); }
+:root[data-theme="bluestem"] .grid--clickable tbody tr:nth-child(even):hover { background: var(--accent-soft); }
+
+/* Meters + status fills use the pure brand colors. */
+:root[data-theme="bluestem"] .meter.is-short > i { background: var(--bad-fill); }
+:root[data-theme="bluestem"] .meter.is-risk > i { background: var(--warn-fill); }
+:root[data-theme="bluestem"] .meter.is-ok > i { background: var(--ok-fill); }
+:root[data-theme="bluestem"] .chip.OK::before, :root[data-theme="bluestem"] .chip.ok::before { background: var(--ok-fill); }
+:root[data-theme="bluestem"] .chip.AtRisk::before, :root[data-theme="bluestem"] .chip.risk::before { background: var(--warn-fill); }
+:root[data-theme="bluestem"] .chip.Short::before, :root[data-theme="bluestem"] .chip.short::before { background: var(--bad-fill); }
+
+/* Buttons: square-cornered RSM Blue primary, no inner highlight. */
+:root[data-theme="bluestem"] button.primary { box-shadow: none; }
+:root[data-theme="bluestem"] .panel,
+:root[data-theme="bluestem"] .item-card { box-shadow: none; }
+:root[data-theme="bluestem"] .overlay { background: rgba(0, 21, 61, .55); }
+
+/* Narrow screens: the ribbon can't hold everything — drop the app name and
+   the sponsor label, keep the logo, nav, RSM mark and avatar. */
+@media (max-width: 860px) {
+  :root[data-theme="bluestem"] .sidebar { position: sticky; height: var(--ribbon-h); overflow-x: auto; }
+  :root[data-theme="bluestem"] .brand__name { display: none; }
+  :root[data-theme="bluestem"] .nav__sponsor { display: flex; padding: 0 .6rem; }
+  :root[data-theme="bluestem"] .nav__sponsor-label { display: none; }
+  :root[data-theme="bluestem"] .nav__user { display: flex; }
+  :root[data-theme="bluestem"] .nav__user-name, :root[data-theme="bluestem"] .nav__signout { display: none; }
+  :root[data-theme="bluestem"] .nav__spacer { display: block; }
+  :root[data-theme="bluestem"] .nav__item.is-active::before { display: block; }
+}
