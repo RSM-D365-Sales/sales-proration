@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sales Proration Demo Cheat Sheet</title>
+<!--
+  Presenter cheat sheet for the Bluestem Fresh Produce Sales Proration demo (IFPA booth).
+  Self-contained: fonts and the RSM mark are local files in ./assets. Prints to two
+  Letter pages. Numbers quoted here come from demo-kit/seed.mjs (the generated
+  demo-kit/data/bluestem-snapshot.json); if the app shows different figures, re-run
+  the generator.
+-->
+<style>
+  /* Layout: one reading column (~70ch) with a wide "click path" table that is the
+     working part of the page. Brand tokens from BRAND_GUIDE.md / skin-bluestem.css. */
+  @font-face { font-family: 'Poppins'; font-weight: 600; font-display: swap; src: url('assets/poppins-600.woff2') format('woff2'); }
+  @font-face { font-family: 'Poppins'; font-weight: 500; font-display: swap; src: url('assets/poppins-500.woff2') format('woff2'); }
+
+  :root {
+    color-scheme: light;
+    --bg: #FFFFFF;
+    --bg-2: #F2F3F4;            /* Fog */
+    --surface: #FFFFFF;
+    --ink: #00153D;             /* Midnight */
+    --ink-2: #33415C;
+    --muted: #5E6C86;
+    --line: #D8DEE8;
+    --accent: #009CDE;          /* RSM Blue */
+    --accent-ink: #00739F;      /* AA on white */
+    --sky: #E5F5FC;
+    --green: #3F9C35;
+    --amber: #B57E00;
+    --amber-bg: #FFF8E1;
+    --red: #D0342C;
+    --red-bg: #FDECEA;
+    --d365: #3A4FA8;
+    --d365-bg: #EEF0F9;
+    --logo-light: inline-block;
+    --logo-dark: none;
+    --font-display: 'Poppins', 'Segoe UI', system-ui, sans-serif;
+    --font-body: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    --font-mono: Consolas, 'Cascadia Mono', ui-monospace, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #00153D; --bg-2: #0B2454; --surface: #0B2454; --ink: #FFFFFF; --ink-2: #DCE3EE; --muted: #9FB0CC;
+      --line: rgba(255,255,255,.14); --accent: #009CDE; --accent-ink: #4FC3F7; --sky: rgba(0,156,222,.16);
+      --green: #6FC265; --amber: #F2A900; --amber-bg: rgba(242,169,0,.14); --red: #FF7B72; --red-bg: rgba(208,52,44,.18);
+      --d365: #8FA0E8; --d365-bg: rgba(58,79,168,.25); --logo-light: none; --logo-dark: inline-block;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #00153D; --bg-2: #0B2454; --surface: #0B2454; --ink: #FFFFFF; --ink-2: #DCE3EE; --muted: #9FB0CC;
+    --line: rgba(255,255,255,.14); --accent: #009CDE; --accent-ink: #4FC3F7; --sky: rgba(0,156,222,.16);
+    --green: #6FC265; --amber: #F2A900; --amber-bg: rgba(242,169,0,.14); --red: #FF7B72; --red-bg: rgba(208,52,44,.18);
+    --d365: #8FA0E8; --d365-bg: rgba(58,79,168,.25); --logo-light: none; --logo-dark: inline-block;
+  }
+
+  * { box-sizing: border-box; }
+  html { font-size: 15px; }
+  body { margin: 0; background: var(--bg); color: var(--ink-2); font-family: var(--font-body); line-height: 1.5; padding-block: 0 48px; padding-inline: 20px; }
+  .page { max-width: 1040px; margin: 0 auto; display: grid; row-gap: 36px; }
+  h1, h2, h3 { font-family: var(--font-display); font-weight: 600; color: var(--ink); margin: 0; text-wrap: balance; letter-spacing: -.01em; }
+  h1 { font-size: 2rem; line-height: 1.15; }
+  h2 { font-size: 1.25rem; line-height: 1.25; display: flex; align-items: center; gap: 12px; }
+  h2::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+  h3 { font-size: 1rem; }
+  p { margin: 0; max-width: 72ch; }
+  a { color: var(--accent-ink); }
+  code { font-family: var(--font-mono); font-size: .9em; background: var(--bg-2); padding: .05em .35em; border-radius: 4px; color: var(--ink); }
+  pre { margin: 0; background: var(--bg-2); border-radius: 8px; padding: 12px 14px; font-family: var(--font-mono); font-size: .85rem; color: var(--ink); overflow-x: auto; line-height: 1.5; }
+  .eyebrow { font-size: .75rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  section { display: grid; row-gap: 16px; }
+
+  /* header */
+  header { border-bottom: 1px solid var(--line); padding-block: 28px 24px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px 32px; }
+  .lockup { display: flex; align-items: center; gap: 14px; }
+  .lockup svg { width: 44px; height: 44px; flex: none; }
+  .wordmark { font-family: var(--font-display); font-weight: 600; font-size: 1.7rem; line-height: 1; color: var(--accent); }
+  .wordmark .stem { color: var(--ink); }
+  .title { display: grid; row-gap: 4px; }
+  .rsm { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: .8rem; }
+  .rsm img { height: 22px; width: auto; display: var(--logo-light); }
+  .rsm img.dark { display: var(--logo-dark); }
+
+  /* at-a-glance grid */
+  .glance { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+  .glance div { background: var(--bg-2); border-radius: 10px; padding: 12px 14px; display: grid; row-gap: 2px; }
+  .glance .k { font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  .glance .v { color: var(--ink); font-weight: 600; font-size: .95rem; line-height: 1.3; }
+  .glance .v small { display: block; font-weight: 400; color: var(--muted); font-size: .8rem; }
+
+  /* checklist */
+  .check { list-style: none; margin: 0; padding: 0; display: grid; row-gap: 10px; max-width: 80ch; }
+  .check li { position: relative; padding-left: 34px; }
+  .check li::before { content: ''; position: absolute; left: 0; top: 3px; width: 18px; height: 18px; border: 2px solid var(--accent); border-radius: 5px; box-sizing: border-box; }
+  .check pre { margin-top: 8px; }
+  .warn { border-left: 4px solid var(--amber); background: var(--amber-bg); padding: 10px 14px; border-radius: 0 8px 8px 0; max-width: 80ch; }
+  .warn b { color: var(--ink); }
+
+  /* click path */
+  .path { width: 100%; border-collapse: collapse; font-size: .92rem; }
+  .path th { text-align: left; font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 0 12px 10px; border-bottom: 1px solid var(--line); }
+  .path td { padding: 14px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .path tr:last-child td { border-bottom: 0; }
+  .path .n { font-family: var(--font-display); font-weight: 600; color: var(--accent-ink); font-variant-numeric: tabular-nums; width: 2.2rem; padding-right: 0; }
+  .path .where { width: 15rem; }
+  .path .where b { color: var(--ink); display: block; font-weight: 600; }
+  .path .where span { color: var(--muted); font-size: .85rem; }
+  .path ul { margin: 0; padding-left: 1.1rem; display: grid; row-gap: 3px; }
+  .path .say { border-left: 3px solid var(--accent); padding-left: 12px; color: var(--ink); font-style: italic; }
+  .path b { color: var(--ink); }
+  .num { font-variant-numeric: tabular-nums; }
+  .pill { display: inline-block; font-size: .72rem; font-weight: 600; padding: 1px 8px; border-radius: 999px; line-height: 1.6; vertical-align: 1px; }
+  .pill.ok { background: rgba(63,156,53,.14); color: var(--green); }
+  .pill.warn { background: var(--amber-bg); color: var(--amber); }
+  .pill.bad { background: var(--red-bg); color: var(--red); }
+  .pill.d365 { background: var(--d365-bg); color: var(--d365); }
+  .table-wrap { overflow-x: auto; }
+  .vo td.t { white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--muted); font-size: .85rem; }
+  .vo td.narr { font-size: 1rem; color: var(--ink); line-height: 1.45; }
+  .vo td.w { white-space: nowrap; color: var(--muted); font-size: .85rem; font-variant-numeric: tabular-nums; }
+  .vo .scene b { color: var(--ink); display: block; }
+  .vo .scene span { color: var(--muted); font-size: .85rem; }
+
+  /* allocation mini-table */
+  .alloc { border-collapse: collapse; font-size: .85rem; font-variant-numeric: tabular-nums; margin-top: 6px; }
+  .alloc th { text-align: right; font-weight: 600; color: var(--muted); padding: 2px 10px 2px 0; font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; }
+  .alloc th:first-child, .alloc td:first-child { text-align: left; }
+  .alloc td { text-align: right; padding: 2px 10px 2px 0; color: var(--ink); border-top: 1px solid var(--line); }
+
+  /* cast / ids */
+  .cast { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px 36px; }
+  .cast dl { margin: 0; display: grid; grid-template-columns: max-content 1fr; column-gap: 14px; row-gap: 6px; font-size: .9rem; }
+  .cast dt { color: var(--muted); }
+  .cast dd { margin: 0; color: var(--ink); }
+  .cast dd code { font-size: .82em; }
+
+  /* Q&A */
+  .qa { display: grid; row-gap: 14px; max-width: 80ch; }
+  .qa div { display: grid; row-gap: 4px; }
+  .qa .q { font-weight: 600; color: var(--ink); }
+
+  /* loop */
+  .loop { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: .9rem; }
+  .loop span { background: var(--bg-2); border-radius: 8px; padding: 8px 12px; color: var(--ink); }
+  .loop span.card { background: var(--ink); color: #fff; }
+  .loop i { color: var(--muted); font-style: normal; }
+
+  footer { border-top: 1px solid var(--line); padding-top: 18px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; font-size: .82rem; color: var(--muted); }
+
+  @media (max-width: 720px) {
+    .path thead { display: none; }
+    .path tr { display: grid; grid-template-columns: 2.2rem 1fr; }
+    .path td { border-bottom: 0; padding: 6px 12px; }
+    .path td.n { grid-row: 1 / span 3; padding-top: 10px; }
+    .path tr { border-bottom: 1px solid var(--line); padding-block: 6px; }
+  }
+  @media print {
+    html { font-size: 11.5px; }
+    body { padding: 0; background: #fff; color: #222; }
+    .page { max-width: none; row-gap: 20px; }
+    header { padding-block: 8px 12px; }
+    section { break-inside: avoid; }
+    .path td { padding: 8px 10px; }
+    a { color: inherit; text-decoration: none; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+<header>
+  <div class="lockup">
+    <svg viewBox="40 30 200 220" aria-hidden="true">
+      <path d="M62 232 Q75 150 150 130" stroke="#009CDE" stroke-width="26" stroke-linecap="round" fill="none"/>
+      <g transform="translate(155 108) rotate(-45)">
+        <path d="M-72 0 C-40 -50 40 -50 72 0 C40 50 -40 50 -72 0 Z" fill="#3F9C35"/>
+        <path d="M-45 0 L45 0" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round"/>
+      </g>
+    </svg>
+    <div class="title">
+      <div class="wordmark" aria-label="bluestem">blue<span class="stem">stem</span></div>
+      <h1>Sales Proration · demo cheat sheet</h1>
+      <div class="eyebrow">Bluestem Fresh Produce · IFPA 2026 · Short on supply? Split it fair and square.</div>
+    </div>
+  </div>
+  <div class="rsm"><span>Powered by</span><img src="assets/rsm-logo.png" alt="RSM"><img class="dark" src="assets/rsm-logo-white.png" alt=""></div>
+</header>
+
+<section>
+  <div class="glance">
+    <div><span class="k">Open</span><span class="v"><a href="http://localhost:5199">localhost:5199</a> (demo build)<small>Start it with the three lines below. Lands on the Planning overview. The hosted site <a href="https://sales-proration.rsmd365.com">sales-proration.rsmd365.com</a> signs in with Entra and shows DEV08 Contoso data, not this set.</small></span></div>
+    <div><span class="k">You are</span><span class="v">Rosa Delgado<small>Production Planner, Bluestem HQ. No sign-in on the demo build; the hosted site shows your Entra name in the ribbon.</small></span></div>
+    <div><span class="k">Where</span><span class="v">Grand Rapids HQ · sites GRP · HOL · HRT<small>Orders ship from GRP-DC and HOL-DC; blueberries are packed at HRT-PK</small></span></div>
+    <div><span class="k">ERP</span><span class="v">Dynamics 365 F&amp;SC<small>One custom-service call in (GetOpenSalesOrders), one SysMessageService message out. Live build: DEV08 · USMF.</small></span></div>
+    <div><span class="k">Loop clip</span><span class="v"><span class="total-s">66.5</span> s tour + 12 s title card<small>demo-kit/out · captions burned in · reel is <span class="reel-s">78.5</span> s</small></span></div>
+  </div>
+</section>
+
+<section>
+  <h2>Before you walk up</h2>
+  <ul class="check">
+    <li>Start the demo build from the repo root (PowerShell). It serves the Bluestem snapshot and makes no D365 calls.
+      <pre>$env:D365_SNAPSHOT_FILE = 'demo-kit/data/bluestem-snapshot.json'
+$env:OUTBOX_FILE = 'demo-kit/data/outbox.jsonl'
+$env:PORT = '5199'; node server/index.js</pre></li>
+    <li>Open the Planning overview. <b>Blueberries should read Short 67.4%, Overall fill 110.5%, "2 need attention"</b>, and the blueberry ship dates should be one to eight days out. If the dates look old, run <code>node demo-kit/seed.mjs</code> and refresh; it re-anchors every date to today with the same numbers.</li>
+    <li>Browser at 100% zoom, window at least 1280 px wide so the ribbon holds all four nav items.</li>
+    <li>Know the cast below. Every customer, order and figure is Bluestem's fictional demo set. Never describe it as a live tenant or as executed ERP postings.</li>
+  </ul>
+  <div class="warn"><b>Don't press Approve &amp; Send on the hosted site</b>: it posts a real message to the DEV08 proration queue. On the demo build it only appends a row to the local outbox (you will see it under Batches), which is fine for the conversation. <b>Don't open Setup → Test active connection</b>; it is a developer page and its result confuses the story. Refresh, filters, Prorate, Re-run, the allocation inputs and the Sub… picker are all safe.</div>
+</section>
+
+<section>
+  <h2>The story in thirty seconds</h2>
+  <p>A wet week took a bite out of the Michigan blueberry harvest. Bluestem has 4,390 cases of open blueberry demand against 2,960 available, and twelve customers who all want their full order. Rosa used to settle that on the phone, one buyer at a time. Now the planning overview flags Blueberries red, she opens it, prorates every item with one click, chooses the policy (equal cut for everyone, or protect the strategic accounts), nudges a line where she knows better, offers a substitute from the same buyer group, and sends the whole batch back to Dynamics 365 as one message. The order lines update in D365 in batch, with an audit trail and an idempotent batch id.</p>
+</section>
+
+<section>
+  <h2>Click path</h2>
+  <div class="table-wrap">
+  <table class="path">
+    <thead><tr><th></th><th>Go to</th><th>Point at</th><th>Say</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="n">1</td>
+        <td class="where"><b>Planning overview</b><span>Ribbon, <i>Commodities</i> (the landing page)</span></td>
+        <td><ul>
+          <li>KPI row: <b>7 commodities · 16 items</b>, total demand <b class="num">22,710</b>, available supply <b class="num">25,090</b>, overall fill <b>110.5%</b>, "2 need attention"</li>
+          <li><span class="pill bad">Short</span> Blueberries 67.4% (3 items, 4,390 cases) · <span class="pill warn">At risk</span> Strawberries 97.2% · five <span class="pill ok">On track</span></li>
+          <li>Recent batches sent to D365 at the bottom: two rows</li>
+        </ul></td>
+        <td class="say">Every commodity, demand against supply, on one screen. Green is fine. Amber we watch. Red is where the phone calls used to start.</td>
+      </tr>
+      <tr>
+        <td class="n">2</td>
+        <td class="where"><b>Customers</b><span>Tick <i>Only customers with orders needing proration</i></span></td>
+        <td><ul>
+          <li>12 customers, 59 open lines, <b>7 need proration</b> (demand on a short item)</li>
+          <li>Sorted by priority: P1 Great Lakes Grocers (Grand Rapids) and Summit Club Stores (Chicago), P2 Northwind, Lakeside, Harbor Street, down to P5 QuickCart Online Grocery</li>
+          <li>The checkbox hides the five <span class="pill ok">Covered</span> rows; sort any column by clicking its header</li>
+        </ul></td>
+        <td class="say">Priority comes from the D365 customer master, one to five. Strategic accounts are a one, spot buyers a five. That number is what the weighted strategy uses.</td>
+      </tr>
+      <tr>
+        <td class="n">3</td>
+        <td class="where"><b>Blueberries</b><span>Commodities, click the Blueberries card</span></td>
+        <td><ul>
+          <li>KPIs: demand <b class="num">4,390</b> · supply <b class="num">2,960</b> · gap <b class="num">1,430</b> undersupplied · fill <b>67.4%</b> Short</li>
+          <li>First item <b>Blueberries 1 pt · 12 ct</b> (BLU-PT12): demand 2,400, supply 1,440, fill 60.0%, seven lines</li>
+          <li>Lines show SO / line, customer with (P1…P5), site, warehouse, requested ship date, requested cases</li>
+          <li>Below it: 18 oz · 8 ct (1,350 vs 820) and Organic 6 oz (640 vs 700, covered)</li>
+        </ul></td>
+        <td class="say">Three blueberry packs, every open line. The pints are the problem: 2,400 cases asked for, 1,440 in the cooler at Hart.</td>
+      </tr>
+      <tr>
+        <td class="n">4</td>
+        <td class="where"><b>Prorate all items</b><span>Strategy stays <i>Weighted (priority)</i></span></td>
+        <td><ul>
+          <li>Summary line: <b>3 of 3 items prorated · 2,900 of 4,390 allocated</b>; the Approve button appears</li>
+          <li>New columns Allocated (editable), Fill %, Weight; chip <span class="pill ok">fully allocated</span></li>
+          <li>Pint item, weighted:
+            <table class="alloc">
+              <tr><th>Customer</th><th>Req.</th><th>Alloc.</th><th>Fill</th><th>Wt</th></tr>
+              <tr><td>Great Lakes Grocers (P1)</td><td>600</td><td>440</td><td>73.3%</td><td>1.50</td></tr>
+              <tr><td>Summit Club Stores (P1)</td><td>480</td><td>351</td><td>73.1%</td><td>1.50</td></tr>
+              <tr><td>Northwind Foods (P2)</td><td>360</td><td>220</td><td>61.1%</td><td>1.25</td></tr>
+              <tr><td>Harbor Street Markets (P2)</td><td>300</td><td>183</td><td>61.0%</td><td>1.25</td></tr>
+              <tr><td>Fresh Bowl Kitchens (P3)</td><td>240</td><td>117</td><td>48.8%</td><td>1.00</td></tr>
+              <tr><td>Maple &amp; Main Co-op (P4)</td><td>220</td><td>80</td><td>36.4%</td><td>0.75</td></tr>
+              <tr><td>QuickCart Online (P5)</td><td>200</td><td>49</td><td>24.5%</td><td>0.50</td></tr>
+            </table></li>
+        </ul></td>
+        <td class="say">One click, three items. Weighted means the strategic accounts take a smaller cut. Nobody gets more than they asked for, and the 1,440 cases add up exactly.</td>
+      </tr>
+      <tr>
+        <td class="n">5</td>
+        <td class="where"><b>Straight-Line</b><span>Change the strategy, <i>Prorate all items</i> again</span></td>
+        <td><ul>
+          <li>Fill % reads <b>60.0%</b> on every pint line: 360 · 288 · 216 · 180 · 144 · 132 · 120</li>
+          <li>Weight column reads 1.00 throughout</li>
+          <li>Optional: pick <i>History-Aware</i>; a note appears "No fill-rate history in the D365 feed yet — History-Aware ran as Weighted"</li>
+        </ul></td>
+        <td class="say">Same cut for everyone, if that is your policy. The planner chooses; the math is the same whichever way.</td>
+      </tr>
+      <tr>
+        <td class="n">6</td>
+        <td class="where"><b>Nudge and substitute</b><span>Type in an Allocated box, then <i>Sub…</i> on a line</span></td>
+        <td><ul>
+          <li>Type <b>60</b> into the QuickCart line (was 120): the chip turns green <span class="pill ok">+60 to allocate</span>; type too much and it turns red "over-allocated"</li>
+          <li><i>Sub…</i> on the Great Lakes Grocers line: "short 240 of 600 requested"; candidate <b>Organic Blueberries 6 oz · 12 ct</b>, 60 available in pool, <span class="pill ok">rule · rank 1 · ×2</span></li>
+          <li>Cancel (or Use, which stages it as "Staged substitutions" above the items)</li>
+        </ul></td>
+        <td class="say">The planner still knows things the model doesn't. Lower a line and the freed cases show up in green. Still short? Offer a substitute from the same buyer group; D365's whitelist ranks the options.</td>
+      </tr>
+      <tr>
+        <td class="n">7</td>
+        <td class="where"><b>Approve &amp; Send</b>, then <b>Batches</b><span>Hover the button; press it only on the demo build</span></td>
+        <td><ul>
+          <li>Button reads <b>Approve &amp; Send 16 line(s) to D365</b> (one proration message; staged subs go as a second message)</li>
+          <li>Batches: <b>Weighted · STR · 3 lines</b> three days ago, <b>StraightLine · TOM · 3 lines</b> yesterday</li>
+          <li>On the demo build a press adds a row here; on the hosted site it posts to DEV08</li>
+        </ul></td>
+        <td class="say">One message, the whole batch, with a batch id D365 treats as idempotent. The sales lines update in batch and every batch stays on the record.</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section>
+  <h2>Cast and identifiers</h2>
+  <div class="cast">
+    <dl>
+      <dt>Planner</dt><dd>Rosa Delgado, Production Planner (the persona for this app)</dd>
+      <dt>P1 strategic</dt><dd>Great Lakes Grocers <code>C10001</code> Grand Rapids · Summit Club Stores <code>C10007</code> Chicago</dd>
+      <dt>P2 key</dt><dd>Northwind Foods <code>C10002</code> Detroit · Lakeside Natural Foods <code>C10009</code> Traverse City · Harbor Street Markets <code>C10011</code> Milwaukee</dd>
+      <dt>P3 standard</dt><dd>Campus Dining Partners · Fresh Bowl Kitchens · Pantry Prime Meal Kits · Windy City Salad Works</dd>
+      <dt>P4 / P5</dt><dd>Maple &amp; Main Co-op · Prairie Foodservice (P4) · QuickCart Online Grocery <code>C10014</code> (P5, spot)</dd>
+    </dl>
+    <dl>
+      <dt>Commodities</dt><dd>Blueberries <code>BLU</code> · Strawberries <code>STR</code> · Lettuce &amp; Leafy Greens <code>LET</code> · Avocados <code>AVO</code> · Apples <code>APL</code> · Tomatoes <code>TOM</code> · Citrus <code>CIT</code> (D365 buyer groups)</dd>
+      <dt>Hero items</dt><dd><code>BLU-PT12</code> pints 2,400 vs 1,440 · <code>BLU-18OZ8</code> 1,350 vs 820 · <code>BLU-ORG6</code> organic 640 vs 700</dd>
+      <dt>Orders</dt><dd>Sales <code>SO-506xx</code>, two per customer · quantities are cases · ship dates 1–8 days out</dd>
+      <dt>Sites</dt><dd><code>GRP</code> / <code>GRP-DC</code> Grand Rapids · <code>HOL</code> / <code>HOL-DC</code> Holland · <code>HRT</code> / <code>HRT-PK</code> Hart packing (blueberry supply)</dd>
+      <dt>Weights</dt><dd>P1 1.50 · P2 1.25 · P3 1.00 · P4 0.75 · P5 0.50</dd>
+      <dt>Queue</dt><dd><code>rsmSalesProrateAccelerator</code>, message types <code>rsmSalesProrateAcceleratorMessage</code> and <code>rsmSalesSubstituteAcceleratorMessage</code></dd>
+    </dl>
+  </div>
+</section>
+
+<section>
+  <h2>Questions you will get</h2>
+  <div class="qa">
+    <div><span class="q">Is this actually talking to D365?</span><p>Yes, by design. The app reads one custom-service operation, SPASalesOrderService.GetOpenSalesOrders, which returns the whole planning snapshot (demand, supply, items, commodities, customer priorities) in one call under an Entra client-credentials token. Approve posts one SysMessageService.SendMessage carrying the batch. The booth build reads a file in the same shape so the show floor doesn't depend on the DEV08 sandbox or its Contoso data.</p></div>
+    <div><span class="q">Where does the priority come from?</span><p>A one-to-five proration priority on the customer master (a CustTable extension). Weighted scales each request by its weight, solves for the factor that spends exactly the available quantity, caps any line at its request and re-solves, then hands out rounding remainders one case at a time to the lines with the most unmet demand. Whole cases only, and the total always equals supply.</p></div>
+    <div><span class="q">What is History-Aware?</span><p>The weighted strategy with a debt factor: customers shorted in recent weeks float upward (alpha 0.5, four-week lookback). The feed doesn't send fill-rate history yet, so it runs as Weighted and the app says so rather than pretending.</p></div>
+    <div><span class="q">How do substitutions work?</span><p>A short line can be offered another item from the same buyer group that still has inventory in its pool. D365's substitution whitelist (RSMItemSubstitution rules) ranks the candidates and applies a quantity ratio; a candidate without a rule is badged "unverified" and D365 would reject it. Substitutions travel as their own message type on the same queue.</p></div>
+    <div><span class="q">What happens inside D365?</span><p>The message processor consumes the batch, updates the sales line quantities in batch, writes an audit record per line, and uses the batch id as the idempotency key, so a redelivered message is a no-op.</p></div>
+    <div><span class="q">Can we prorate by site or warehouse?</span><p>The proration call already takes site and warehouse filters; the screen prorates per item across sites today. Site-level buttons are a small UI change.</p></div>
+    <div><span class="q">How is it hosted?</span><p>Static front end on Cloudflare Pages behind a custom domain, an Azure Functions API that holds the D365 secret and validates Entra tokens, single-tenant Entra sign-in with app roles (Proration.Admin, Proration.User). Everything is white-label: the whole look comes from one branding file.</p></div>
+  </div>
+</section>
+
+<section>
+  <h2>If something goes wrong</h2>
+  <ul class="check">
+    <li><b>"Couldn't load data from D365" with a Retry button.</b> The demo server isn't running, or it was started without the two environment variables. Start it with the three lines above and press Retry.</li>
+    <li><b>Figures differ from this sheet, or dates are old.</b> Run <code>node demo-kit/seed.mjs</code> from the repo root and refresh. It is seeded, so the same numbers come back with today's dates.</li>
+    <li><b>Someone pressed Approve &amp; Send on the demo build.</b> A new row appears under Batches and nothing left the machine. Re-run the seed to put the outbox back to two rows.</li>
+    <li><b>The hosted site shows Contoso customers and speakers.</b> Expected: it reads the DEV08 sandbox. Use the demo build for the booth, or ask the D365 team to load the Bluestem set into a legal entity.</li>
+    <li><b>Nothing loads at all.</b> Fall back to the looping reel while you restart the server.</li>
+  </ul>
+</section>
+
+<section id="voice-over">
+  <h2>Voice-over script</h2>
+  <!-- vo-script:start — generated by write-script.mjs from scenes.mjs; do not edit by hand -->
+  <p>1:06.5 running time, 138 words, read warm and unhurried at about 150 words a minute. Each line is sized to finish half a second before the cut; if you land early, hold the pause. Say "D365" as <i>dee-three-sixty-five</i>.</p>
+  <div class="table-wrap">
+  <table class="path vo">
+    <thead><tr><th></th><th>Time</th><th>Scene · on screen</th><th>Narration</th><th>Words</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="n">1</td>
+        <td class="t">0:00.0 – 0:09.0</td>
+        <td class="scene"><b>Planning overview</b><span>KPI row (Commodities, Total demand, Available supply, Overall fill with "2 need attention"), then the commodity cards: Blueberries red Short, Strawberries amber At risk, five green.</span></td>
+        <td class="narr">A wet week shorted the Michigan blueberry harvest. Bluestem sees it here first: every commodity, demand against supply.</td>
+        <td class="w">18 · 120 wpm</td>
+      </tr>
+      <tr>
+        <td class="n">2</td>
+        <td class="t">0:09.0 – 0:18.0</td>
+        <td class="scene"><b>Customers</b><span>Customers table sorted by priority; the "Only customers with orders needing proration" checkbox narrows it to the red "Needs proration" rows.</span></td>
+        <td class="narr">Customers carry a priority from one to five, straight from D365. Filter to the ones whose orders need proration.</td>
+        <td class="w">19 · 127 wpm</td>
+      </tr>
+      <tr>
+        <td class="n">3</td>
+        <td class="t">0:18.0 – 0:27.0</td>
+        <td class="scene"><b>Blueberries</b><span>Commodity KPIs (Total demand, Available supply, Gap, Fill rate), the strategy bar, then the pint item's demand grid: 7 lines, 2,400 requested against 1,440 available.</span></td>
+        <td class="narr">Open the short commodity. Three blueberry items, every open line by customer, ship-from site and requested ship date.</td>
+        <td class="w">18 · 120 wpm</td>
+      </tr>
+      <tr>
+        <td class="n">4</td>
+        <td class="t">0:27.0 – 0:37.0</td>
+        <td class="scene"><b>Prorate all items · Weighted</b><span>Three new columns per line: Allocated (editable), Fill % and Weight; the chip beside the item reads "fully allocated".</span></td>
+        <td class="narr">Prorate all items. Weighted by priority, the strategic accounts land seventy-three percent of their pints; the spot buyer gets a quarter.</td>
+        <td class="w">21 · 126 wpm</td>
+      </tr>
+      <tr>
+        <td class="n">5</td>
+        <td class="t">0:37.0 – 0:44.5</td>
+        <td class="scene"><b>Straight-Line</b><span>Strategy select changed to Straight-Line, Prorate all again; the Fill % column reads 60.0% down every line.</span></td>
+        <td class="narr">Switch to Straight-Line and re-run: everyone takes the same sixty percent cut. The planner picks the policy.</td>
+        <td class="w">17 · 136 wpm</td>
+      </tr>
+      <tr>
+        <td class="n">6</td>
+        <td class="t">0:44.5 – 0:53.5</td>
+        <td class="scene"><b>Nudge and substitute</b><span>The QuickCart allocation is typed down; the chip turns green "+N to allocate". The Sub… picker opens for the Great Lakes line with "rule · rank 1" badges, then Cancel.</span></td>
+        <td class="narr">Nudge a line and the freed cases turn green. Still short? Offer a substitute, ranked by D365's whitelist.</td>
+        <td class="w">18 · 120 wpm</td>
+      </tr>
+      <tr>
+        <td class="n">7</td>
+        <td class="t">0:53.5 – 1:00.5</td>
+        <td class="scene"><b>Approve &amp; Send to D365</b><span>Cursor rests on "Approve &amp; Send … to D365" without clicking; then the Batches nav scrolls the overview to "Recent batches sent to D365" with two rows.</span></td>
+        <td class="narr">Approve, and the whole batch goes to D365 as one message. Every earlier batch is here.</td>
+        <td class="w">16 · 137 wpm</td>
+      </tr>
+      <tr>
+        <td class="n">8</td>
+        <td class="t">1:00.5 – 1:06.5</td>
+        <td class="scene"><b>Sales Proration</b><span>Midnight end card: bluestem mark, Sales Proration, the hook line, Powered by RSM bottom-right.</span></td>
+        <td class="narr">Sales Proration, powered by RSM. Fair and square, no phone calls.</td>
+        <td class="w">11 · 110 wpm</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Alternate openers if the room wants a hook (each adds about 5 s): “Spreadsheets are where margins go to hide. Let's go find them.” · “Here's a problem every produce company knows by heart: the truck is short, and six customers are on the phone.”</p>
+  <!-- vo-script:end -->
+</section>
+
+<section>
+  <h2>Looping video</h2>
+  <div class="loop">
+    <span class="card">Title card · 12 s</span><i>→</i>
+    <span>Sales Proration tour · <span class="total-s">66.5</span> s</span><i>→</i>
+    <span class="card">Title card · 12 s</span><i>→</i>
+    <span>next Bluestem app …</span>
+  </div>
+  <p>The tour is captioned bottom-left so it works muted. <code>demo-kit/out/sales-proration-reel.mp4</code> is the title card and tour joined; play the apps' reels back to back for the whole IFPA loop. The voice-over script with timecodes is in <code>demo-kit/voiceover-script.md</code>. To re-render after a data change: run the seed, start the demo server, then <code>node demo-kit/record.mjs</code>.</p>
+</section>
+
+<footer>
+  <span>Bluestem Fresh Produce is RSM's fictional IFPA mock company. Figures from <code>demo-kit/seed.mjs</code>.</span>
+  <span>Sales Proration · Bluestem edition</span>
+</footer>
+
+</div>
+</body>
+</html>

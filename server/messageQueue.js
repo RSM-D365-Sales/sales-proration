@@ -6,7 +6,12 @@
 const fs = require('fs');
 const path = require('path');
 
-const OUTBOX = path.join(__dirname, '..', '.outbox', 'd365-proration-inbound.log.jsonl');
+// OUTBOX_FILE (optional) points the stub at another log, e.g. the demo kit's
+// generated demo-kit/data/outbox.jsonl, so demo batches never mix with the
+// developer's own .outbox history.
+const OUTBOX = process.env.OUTBOX_FILE
+  ? path.resolve(__dirname, '..', process.env.OUTBOX_FILE)
+  : path.join(__dirname, '..', '.outbox', 'd365-proration-inbound.log.jsonl');
 
 function ensureDir(p) {
   fs.mkdirSync(path.dirname(p), { recursive: true });

@@ -1,0 +1,936 @@
+{
+  "commodities": [
+    {
+      "CommodityId": "BLU",
+      "Description": "Blueberries"
+    },
+    {
+      "CommodityId": "STR",
+      "Description": "Strawberries"
+    },
+    {
+      "CommodityId": "LET",
+      "Description": "Lettuce & Leafy Greens"
+    },
+    {
+      "CommodityId": "AVO",
+      "Description": "Avocados"
+    },
+    {
+      "CommodityId": "APL",
+      "Description": "Apples"
+    },
+    {
+      "CommodityId": "TOM",
+      "Description": "Tomatoes"
+    },
+    {
+      "CommodityId": "CIT",
+      "Description": "Citrus"
+    }
+  ],
+  "items": [
+    {
+      "ItemId": "BLU-PT12",
+      "CommodityId": "BLU",
+      "name": "Blueberries 1 pt · 12 ct",
+      "uom": "cs"
+    },
+    {
+      "ItemId": "BLU-18OZ8",
+      "CommodityId": "BLU",
+      "name": "Blueberries 18 oz · 8 ct",
+      "uom": "cs"
+    },
+    {
+      "ItemId": "BLU-ORG6",
+      "CommodityId": "BLU",
+      "name": "Organic Blueberries 6 oz · 12 ct",
+      "uom": "cs"
+    },
+    {
+      "ItemId": "STR-1LB8",
+      "CommodityId": "STR",
+      "name": "Strawberries 1 lb · 8 ct",
+      "uom": "cs"
+    },
+    {
+      "ItemId": "STR-2LB4",
+      "CommodityId": "STR",
+      "name": "Strawberries 2 lb · 4 ct",
+      "uom": "cs"
+    },
+    {
+      "ItemId": "LET-ROM12",
+      "CommodityId": "LET",
+      "name": "Romaine Hearts 3-pk · 12 ct",
+      "uom": "cs"
+    },
+    {
+      "ItemId": "LET-BUT12",
+      "CommodityId": "LET",
+      "name": "Living Butter Lettuce · 12 ct",
+      "uom": "cs"
+    },
+    {
+      "ItemId": "LET-MIX6",
+      "CommodityId": "LET",
+      "name": "Spring Mix 5 oz · 6 ct",
+      "uom": "cs"
+    },
+    {
+      "ItemId": "AVO-48",
+      "CommodityId": "AVO",
+      "name": "Hass Avocados 48 ct",
+      "uom": "cs"
+    },
+    {
+      "ItemId": "AVO-BAG5",
+      "CommodityId": "AVO",
+      "name": "Hass Avocados 5-ct bag · 12",
+      "uom": "cs"
+    },
+    {
+      "ItemId": "APL-HC3",
+      "CommodityId": "APL",
+      "name": "Honeycrisp 3 lb bag · 10 ct",
+      "uom": "cs"
+    },
+    {
+      "ItemId": "APL-GALA",
+      "CommodityId": "APL",
+      "name": "Gala 40 lb carton",
+      "uom": "cs"
+    },
+    {
+      "ItemId": "TOM-ROM25",
+      "CommodityId": "TOM",
+      "name": "Roma 25 lb carton",
+      "uom": "cs"
+    },
+    {
+      "ItemId": "TOM-GRP12",
+      "CommodityId": "TOM",
+      "name": "Grape Tomatoes 1 pt · 12 ct",
+      "uom": "cs"
+    },
+    {
+      "ItemId": "CIT-NAV88",
+      "CommodityId": "CIT",
+      "name": "Navel Oranges 88 ct",
+      "uom": "cs"
+    },
+    {
+      "ItemId": "CIT-LEM115",
+      "CommodityId": "CIT",
+      "name": "Lemons 115 ct",
+      "uom": "cs"
+    }
+  ],
+  "customers": [
+    {
+      "customerId": "C10001",
+      "name": "Great Lakes Grocers",
+      "priority": 1,
+      "shipToCity": "Grand Rapids",
+      "shipToState": "MI"
+    },
+    {
+      "customerId": "C10007",
+      "name": "Summit Club Stores",
+      "priority": 1,
+      "shipToCity": "Chicago",
+      "shipToState": "IL"
+    },
+    {
+      "customerId": "C10002",
+      "name": "Northwind Foods",
+      "priority": 2,
+      "shipToCity": "Detroit",
+      "shipToState": "MI"
+    },
+    {
+      "customerId": "C10009",
+      "name": "Lakeside Natural Foods",
+      "priority": 2,
+      "shipToCity": "Traverse City",
+      "shipToState": "MI"
+    },
+    {
+      "customerId": "C10011",
+      "name": "Harbor Street Markets",
+      "priority": 2,
+      "shipToCity": "Milwaukee",
+      "shipToState": "WI"
+    },
+    {
+      "customerId": "C10004",
+      "name": "Campus Dining Partners",
+      "priority": 3,
+      "shipToCity": "Ann Arbor",
+      "shipToState": "MI"
+    },
+    {
+      "customerId": "C10005",
+      "name": "Fresh Bowl Kitchens",
+      "priority": 3,
+      "shipToCity": "Indianapolis",
+      "shipToState": "IN"
+    },
+    {
+      "customerId": "C10006",
+      "name": "Pantry Prime Meal Kits",
+      "priority": 3,
+      "shipToCity": "Columbus",
+      "shipToState": "OH"
+    },
+    {
+      "customerId": "C10008",
+      "name": "Windy City Salad Works",
+      "priority": 3,
+      "shipToCity": "Chicago",
+      "shipToState": "IL"
+    },
+    {
+      "customerId": "C10012",
+      "name": "Maple & Main Co-op",
+      "priority": 4,
+      "shipToCity": "Kalamazoo",
+      "shipToState": "MI"
+    },
+    {
+      "customerId": "C10013",
+      "name": "Prairie Foodservice",
+      "priority": 4,
+      "shipToCity": "Fort Wayne",
+      "shipToState": "IN"
+    },
+    {
+      "customerId": "C10014",
+      "name": "QuickCart Online Grocery",
+      "priority": 5,
+      "shipToCity": "Toledo",
+      "shipToState": "OH"
+    }
+  ],
+  "Demand": [
+    {
+      "SalesId": "SO-50611",
+      "LineNum": 1,
+      "ItemId": "BLU-PT12",
+      "CustAccount": "C10001",
+      "SiteId": "GRP",
+      "WarehouseId": "GRP-DC",
+      "RequestedQty": 600,
+      "RequestedShipDate": "2026-10-08"
+    },
+    {
+      "SalesId": "SO-50612",
+      "LineNum": 1,
+      "ItemId": "BLU-PT12",
+      "CustAccount": "C10007",
+      "SiteId": "GRP",
+      "WarehouseId": "GRP-DC",
+      "RequestedQty": 480,
+      "RequestedShipDate": "2026-10-09"
+    },
+    {
+      "SalesId": "SO-50615",
+      "LineNum": 1,
+      "ItemId": "BLU-PT12",
+      "CustAccount": "C10002",
+      "SiteId": "GRP",
+      "WarehouseId": "GRP-DC",
+      "RequestedQty": 360,
+      "RequestedShipDate": "2026-10-08"
+    },
+    {
+      "SalesId": "SO-50618",
+      "LineNum": 1,
+      "ItemId": "BLU-PT12",
+      "CustAccount": "C10011",
+      "SiteId": "HOL",
+      "WarehouseId": "HOL-DC",
+      "RequestedQty": 300,
+      "RequestedShipDate": "2026-10-10"
+    },
+    {
+      "SalesId": "SO-50623",
+      "LineNum": 1,
+      "ItemId": "BLU-PT12",
+      "CustAccount": "C10005",
+      "SiteId": "HOL",
+      "WarehouseId": "HOL-DC",
+      "RequestedQty": 240,
+      "RequestedShipDate": "2026-10-09"
+    },
+    {
+      "SalesId": "SO-50629",
+      "LineNum": 1,
+      "ItemId": "BLU-PT12",
+      "CustAccount": "C10012",
+      "SiteId": "GRP",
+      "WarehouseId": "GRP-DC",
+      "RequestedQty": 220,
+      "RequestedShipDate": "2026-10-11"
+    },
+    {
+      "SalesId": "SO-50633",
+      "LineNum": 1,
+      "ItemId": "BLU-PT12",
+      "CustAccount": "C10014",
+      "SiteId": "HOL",
+      "WarehouseId": "HOL-DC",
+      "RequestedQty": 200,
+      "RequestedShipDate": "2026-10-12"
+    },
+    {
+      "SalesId": "SO-50612",
+      "LineNum": 2,
+      "ItemId": "BLU-18OZ8",
+      "CustAccount": "C10007",
+      "SiteId": "GRP",
+      "WarehouseId": "GRP-DC",
+      "RequestedQty": 420,
+      "RequestedShipDate": "2026-10-09"
+    },
+    {
+      "SalesId": "SO-50615",
+      "LineNum": 2,
+      "ItemId": "BLU-18OZ8",
+      "CustAccount": "C10002",
+      "SiteId": "GRP",
+      "WarehouseId": "GRP-DC",
+      "RequestedQty": 330,
+      "RequestedShipDate": "2026-10-10"
+    },
+    {
+      "SalesId": "SO-50622",
+      "LineNum": 1,
+      "ItemId": "BLU-18OZ8",
+      "CustAccount": "C10005",
+      "SiteId": "HOL",
+      "WarehouseId": "HOL-DC",
+      "RequestedQty": 240,
+      "RequestedShipDate": "2026-10-08"
+    },
+    {
+      "SalesId": "SO-50618",
+      "LineNum": 2,
+      "ItemId": "BLU-18OZ8",
+      "CustAccount": "C10011",
+      "SiteId": "HOL",
+      "WarehouseId": "HOL-DC",
+      "RequestedQty": 200,
+      "RequestedShipDate": "2026-10-11"
+    },
+    {
+      "SalesId": "SO-50628",
+      "LineNum": 1,
+      "ItemId": "BLU-18OZ8",
+      "CustAccount": "C10012",
+      "SiteId": "GRP",
+      "WarehouseId": "GRP-DC",
+      "RequestedQty": 160,
+      "RequestedShipDate": "2026-10-12"
+    },
+    {
+      "SalesId": "SO-50631",
+      "LineNum": 1,
+      "ItemId": "BLU-ORG6",
+      "CustAccount": "C10013",
+      "SiteId": "HOL",
+      "WarehouseId": "HOL-DC",
+      "RequestedQty": 170,
+      "RequestedShipDate": "2026-10-13"
+    },
+    {
+      "SalesId": "SO-50616",
+      "LineNum": 1,
+      "ItemId": "BLU-ORG6",
+      "CustAccount": "C10009",
+      "SiteId": "HOL",
+      "WarehouseId": "HOL-DC",
+      "RequestedQty": 200,
+      "RequestedShipDate": "2026-10-07"
+    },
+    {
+      "SalesId": "SO-50626",
+      "LineNum": 1,
+      "ItemId": "BLU-ORG6",
+      "CustAccount": "C10008",
+      "SiteId": "HOL",
+      "WarehouseId": "HOL-DC",
+      "RequestedQty": 130,
+      "RequestedShipDate": "2026-10-14"
+    },
+    {
+      "SalesId": "SO-50620",
+      "LineNum": 1,
+      "ItemId": "BLU-ORG6",
+      "CustAccount": "C10004",
+      "SiteId": "GRP",
+      "WarehouseId": "GRP-DC",
+      "RequestedQty": 140,
+      "RequestedShipDate": "2026-10-13"
+    },
+    {
+      "SalesId": "SO-50629",
+      "LineNum": 2,
+      "ItemId": "STR-1LB8",
+      "CustAccount": "C10012",
+      "SiteId": "GRP",
+      "WarehouseId": "GRP-DC",
+      "RequestedQty": 520,
+      "RequestedShipDate": "2026-10-09"
+    },
+    {
+      "SalesId": "SO-50631",
+      "LineNum": 2,
+      "ItemId": "STR-1LB8",
+      "CustAccount": "C10013",
+      "SiteId": "HOL",
+      "WarehouseId": "HOL-DC",
+      "RequestedQty": 870,
+      "RequestedShipDate": "2026-10-10"
+    },
+    {
+      "SalesId": "SO-50611",
+      "LineNum": 2,
+      "ItemId": "STR-1LB8",
+      "CustAccount": "C10001",
+      "SiteId": "GRP",
+      "WarehouseId": "GRP-DC",
+      "RequestedQty": 850,
+      "RequestedShipDate": "2026-10-08"
+    },
+    {
+      "SalesId": "SO-50621",
+      "LineNum": 1,
+      "ItemId": "STR-1LB8",
+      "CustAccount": "C10004",
+      "SiteId": "GRP",
+      "WarehouseId": "GRP-DC",
+      "RequestedQty": 450,
+      "RequestedShipDate": "2026-10-14"
+    },
+    {
+      "SalesId": "SO-50625",
+      "LineNum": 1,
+      "ItemId": "STR-1LB8",
+      "CustAccount": "C10006",
+      "SiteId": "GRP",
+      "WarehouseId": "GRP-DC",
+      "RequestedQty": 510,
+      "RequestedShipDate": "2026-10-09"
+    },
+    {
+      "SalesId": "SO-50611",
+      "LineNum": 3,
+      "ItemId": "STR-2LB4",
+      "CustAccount": "C10001",
+      "SiteId": "GRP",
+      "WarehouseId": "GRP-DC",
+      "RequestedQty": 500,
+      "RequestedShipDate": "2026-10-08"
+    },
+    {
+      "SalesId": "SO-50612",
+      "LineNum": 3,
+      "ItemId": "STR-2LB4",
+      "CustAccount": "C10007",
+      "SiteId": "GRP",
+      "WarehouseId": "GRP-DC",
+      "RequestedQty": 400,
+      "RequestedShipDate": "2026-10-09"
+    },
+    {
+      "SalesId": "SO-50619",
+      "LineNum": 1,
+      "ItemId": "STR-2LB4",
+      "CustAccount": "C10011",
+      "SiteId": "HOL",
+      "WarehouseId": "HOL-DC",
+      "RequestedQty": 200,
+      "RequestedShipDate": "2026-10-10"
+    },
+    {
+      "SalesId": "SO-50633",
+      "LineNum": 2,
+      "ItemId": "LET-ROM12",
+      "CustAccount": "C10014",
+      "SiteId": "GRP",
+      "WarehouseId": "GRP-DC",
+      "RequestedQty": 510,
+      "RequestedShipDate": "2026-10-10"
+    },
+    {
+      "SalesId": "SO-50626",
+      "LineNum": 2,
+      "ItemId": "LET-ROM12",
+      "CustAccount": "C10008",
+      "SiteId": "GRP",
+      "WarehouseId": "GRP-DC",
+      "RequestedQty": 380,
+      "RequestedShipDate": "2026-10-08"
+    },
+    {
+      "SalesId": "SO-50621",
+      "LineNum": 2,
+      "ItemId": "LET-ROM12",
+      "CustAccount": "C10004",
+      "SiteId": "GRP",
+      "WarehouseId": "GRP-DC",
+      "RequestedQty": 640,
+      "RequestedShipDate": "2026-10-09"
+    },
+    {
+      "SalesId": "SO-50616",
+      "LineNum": 2,
+      "ItemId": "LET-ROM12",
+      "CustAccount": "C10009",
+      "SiteId": "GRP",
+      "WarehouseId": "GRP-DC",
+      "RequestedQty": 570,
+      "RequestedShipDate": "2026-10-11"
+    },
+    {
+      "SalesId": "SO-50621",
+      "LineNum": 3,
+      "ItemId": "LET-BUT12",
+      "CustAccount": "C10004",
+      "SiteId": "GRP",
+      "WarehouseId": "GRP-DC",
+      "RequestedQty": 300,
+      "RequestedShipDate": "2026-10-09"
+    },
+    {
+      "SalesId": "SO-50624",
+      "LineNum": 1,
+      "ItemId": "LET-BUT12",
+      "CustAccount": "C10006",
+      "SiteId": "HOL",
+      "WarehouseId": "HOL-DC",
+      "RequestedQty": 370,
+      "RequestedShipDate": "2026-10-09"
+    },
+    {
+      "SalesId": "SO-50618",
+      "LineNum": 3,
+      "ItemId": "LET-BUT12",
+      "CustAccount": "C10011",
+      "SiteId": "GRP",
+      "WarehouseId": "GRP-DC",
+      "RequestedQty": 230,
+      "RequestedShipDate": "2026-10-08"
+    },
+    {
+      "SalesId": "SO-50627",
+      "LineNum": 1,
+      "ItemId": "LET-MIX6",
+      "CustAccount": "C10008",
+      "SiteId": "GRP",
+      "WarehouseId": "GRP-DC",
+      "RequestedQty": 430,
+      "RequestedShipDate": "2026-10-11"
+    },
+    {
+      "SalesId": "SO-50616",
+      "LineNum": 3,
+      "ItemId": "LET-MIX6",
+      "CustAccount": "C10009",
+      "SiteId": "GRP",
+      "WarehouseId": "GRP-DC",
+      "RequestedQty": 400,
+      "RequestedShipDate": "2026-10-07"
+    },
+    {
+      "SalesId": "SO-50610",
+      "LineNum": 1,
+      "ItemId": "LET-MIX6",
+      "CustAccount": "C10001",
+      "SiteId": "HOL",
+      "WarehouseId": "HOL-DC",
+      "RequestedQty": 670,
+      "RequestedShipDate": "2026-10-14"
+    },
+    {
+      "SalesId": "SO-50622",
+      "LineNum": 2,
+      "ItemId": "AVO-48",
+      "CustAccount": "C10005",
+      "SiteId": "HOL",
+      "WarehouseId": "HOL-DC",
+      "RequestedQty": 450,
+      "RequestedShipDate": "2026-10-08"
+    },
+    {
+      "SalesId": "SO-50627",
+      "LineNum": 2,
+      "ItemId": "AVO-48",
+      "CustAccount": "C10008",
+      "SiteId": "GRP",
+      "WarehouseId": "GRP-DC",
+      "RequestedQty": 450,
+      "RequestedShipDate": "2026-10-13"
+    },
+    {
+      "SalesId": "SO-50628",
+      "LineNum": 2,
+      "ItemId": "AVO-48",
+      "CustAccount": "C10012",
+      "SiteId": "GRP",
+      "WarehouseId": "GRP-DC",
+      "RequestedQty": 380,
+      "RequestedShipDate": "2026-10-08"
+    },
+    {
+      "SalesId": "SO-50633",
+      "LineNum": 3,
+      "ItemId": "AVO-48",
+      "CustAccount": "C10014",
+      "SiteId": "HOL",
+      "WarehouseId": "HOL-DC",
+      "RequestedQty": 520,
+      "RequestedShipDate": "2026-10-14"
+    },
+    {
+      "SalesId": "SO-50628",
+      "LineNum": 3,
+      "ItemId": "AVO-BAG5",
+      "CustAccount": "C10012",
+      "SiteId": "HOL",
+      "WarehouseId": "HOL-DC",
+      "RequestedQty": 260,
+      "RequestedShipDate": "2026-10-11"
+    },
+    {
+      "SalesId": "SO-50622",
+      "LineNum": 3,
+      "ItemId": "AVO-BAG5",
+      "CustAccount": "C10005",
+      "SiteId": "GRP",
+      "WarehouseId": "GRP-DC",
+      "RequestedQty": 260,
+      "RequestedShipDate": "2026-10-07"
+    },
+    {
+      "SalesId": "SO-50625",
+      "LineNum": 2,
+      "ItemId": "AVO-BAG5",
+      "CustAccount": "C10006",
+      "SiteId": "GRP",
+      "WarehouseId": "GRP-DC",
+      "RequestedQty": 240,
+      "RequestedShipDate": "2026-10-11"
+    },
+    {
+      "SalesId": "SO-50629",
+      "LineNum": 3,
+      "ItemId": "APL-HC3",
+      "CustAccount": "C10012",
+      "SiteId": "HOL",
+      "WarehouseId": "HOL-DC",
+      "RequestedQty": 530,
+      "RequestedShipDate": "2026-10-12"
+    },
+    {
+      "SalesId": "SO-50611",
+      "LineNum": 4,
+      "ItemId": "APL-HC3",
+      "CustAccount": "C10001",
+      "SiteId": "GRP",
+      "WarehouseId": "GRP-DC",
+      "RequestedQty": 520,
+      "RequestedShipDate": "2026-10-09"
+    },
+    {
+      "SalesId": "SO-50614",
+      "LineNum": 1,
+      "ItemId": "APL-HC3",
+      "CustAccount": "C10002",
+      "SiteId": "GRP",
+      "WarehouseId": "GRP-DC",
+      "RequestedQty": 540,
+      "RequestedShipDate": "2026-10-13"
+    },
+    {
+      "SalesId": "SO-50627",
+      "LineNum": 3,
+      "ItemId": "APL-HC3",
+      "CustAccount": "C10008",
+      "SiteId": "HOL",
+      "WarehouseId": "HOL-DC",
+      "RequestedQty": 310,
+      "RequestedShipDate": "2026-10-13"
+    },
+    {
+      "SalesId": "SO-50628",
+      "LineNum": 4,
+      "ItemId": "APL-GALA",
+      "CustAccount": "C10012",
+      "SiteId": "GRP",
+      "WarehouseId": "GRP-DC",
+      "RequestedQty": 270,
+      "RequestedShipDate": "2026-10-08"
+    },
+    {
+      "SalesId": "SO-50622",
+      "LineNum": 4,
+      "ItemId": "APL-GALA",
+      "CustAccount": "C10005",
+      "SiteId": "HOL",
+      "WarehouseId": "HOL-DC",
+      "RequestedQty": 330,
+      "RequestedShipDate": "2026-10-07"
+    },
+    {
+      "SalesId": "SO-50614",
+      "LineNum": 2,
+      "ItemId": "APL-GALA",
+      "CustAccount": "C10002",
+      "SiteId": "HOL",
+      "WarehouseId": "HOL-DC",
+      "RequestedQty": 260,
+      "RequestedShipDate": "2026-10-11"
+    },
+    {
+      "SalesId": "SO-50627",
+      "LineNum": 4,
+      "ItemId": "TOM-ROM25",
+      "CustAccount": "C10008",
+      "SiteId": "HOL",
+      "WarehouseId": "HOL-DC",
+      "RequestedQty": 260,
+      "RequestedShipDate": "2026-10-12"
+    },
+    {
+      "SalesId": "SO-50625",
+      "LineNum": 3,
+      "ItemId": "TOM-ROM25",
+      "CustAccount": "C10006",
+      "SiteId": "HOL",
+      "WarehouseId": "HOL-DC",
+      "RequestedQty": 480,
+      "RequestedShipDate": "2026-10-11"
+    },
+    {
+      "SalesId": "SO-50620",
+      "LineNum": 2,
+      "ItemId": "TOM-ROM25",
+      "CustAccount": "C10004",
+      "SiteId": "HOL",
+      "WarehouseId": "HOL-DC",
+      "RequestedQty": 460,
+      "RequestedShipDate": "2026-10-10"
+    },
+    {
+      "SalesId": "SO-50619",
+      "LineNum": 2,
+      "ItemId": "TOM-GRP12",
+      "CustAccount": "C10011",
+      "SiteId": "HOL",
+      "WarehouseId": "HOL-DC",
+      "RequestedQty": 290,
+      "RequestedShipDate": "2026-10-12"
+    },
+    {
+      "SalesId": "SO-50620",
+      "LineNum": 3,
+      "ItemId": "TOM-GRP12",
+      "CustAccount": "C10004",
+      "SiteId": "HOL",
+      "WarehouseId": "HOL-DC",
+      "RequestedQty": 380,
+      "RequestedShipDate": "2026-10-12"
+    },
+    {
+      "SalesId": "SO-50614",
+      "LineNum": 3,
+      "ItemId": "TOM-GRP12",
+      "CustAccount": "C10002",
+      "SiteId": "GRP",
+      "WarehouseId": "GRP-DC",
+      "RequestedQty": 310,
+      "RequestedShipDate": "2026-10-09"
+    },
+    {
+      "SalesId": "SO-50631",
+      "LineNum": 3,
+      "ItemId": "CIT-NAV88",
+      "CustAccount": "C10013",
+      "SiteId": "HOL",
+      "WarehouseId": "HOL-DC",
+      "RequestedQty": 280,
+      "RequestedShipDate": "2026-10-08"
+    },
+    {
+      "SalesId": "SO-50625",
+      "LineNum": 4,
+      "ItemId": "CIT-NAV88",
+      "CustAccount": "C10006",
+      "SiteId": "GRP",
+      "WarehouseId": "GRP-DC",
+      "RequestedQty": 520,
+      "RequestedShipDate": "2026-10-08"
+    },
+    {
+      "SalesId": "SO-50633",
+      "LineNum": 4,
+      "ItemId": "CIT-NAV88",
+      "CustAccount": "C10014",
+      "SiteId": "HOL",
+      "WarehouseId": "HOL-DC",
+      "RequestedQty": 600,
+      "RequestedShipDate": "2026-10-07"
+    },
+    {
+      "SalesId": "SO-50618",
+      "LineNum": 4,
+      "ItemId": "CIT-LEM115",
+      "CustAccount": "C10011",
+      "SiteId": "HOL",
+      "WarehouseId": "HOL-DC",
+      "RequestedQty": 350,
+      "RequestedShipDate": "2026-10-10"
+    },
+    {
+      "SalesId": "SO-50626",
+      "LineNum": 3,
+      "ItemId": "CIT-LEM115",
+      "CustAccount": "C10008",
+      "SiteId": "GRP",
+      "WarehouseId": "GRP-DC",
+      "RequestedQty": 270,
+      "RequestedShipDate": "2026-10-08"
+    }
+  ],
+  "Supply": [
+    {
+      "ItemId": "BLU-PT12",
+      "SiteId": "HRT",
+      "WarehouseId": "HRT-PK",
+      "AvailableQty": 1440
+    },
+    {
+      "ItemId": "BLU-18OZ8",
+      "SiteId": "HRT",
+      "WarehouseId": "HRT-PK",
+      "AvailableQty": 820
+    },
+    {
+      "ItemId": "BLU-ORG6",
+      "SiteId": "HRT",
+      "WarehouseId": "HRT-PK",
+      "AvailableQty": 700
+    },
+    {
+      "ItemId": "STR-1LB8",
+      "SiteId": "GRP",
+      "WarehouseId": "GRP-DC",
+      "AvailableQty": 3200
+    },
+    {
+      "ItemId": "STR-2LB4",
+      "SiteId": "GRP",
+      "WarehouseId": "GRP-DC",
+      "AvailableQty": 980
+    },
+    {
+      "ItemId": "LET-ROM12",
+      "SiteId": "HOL",
+      "WarehouseId": "HOL-DC",
+      "AvailableQty": 2480
+    },
+    {
+      "ItemId": "LET-BUT12",
+      "SiteId": "HOL",
+      "WarehouseId": "HOL-DC",
+      "AvailableQty": 1180
+    },
+    {
+      "ItemId": "LET-MIX6",
+      "SiteId": "HOL",
+      "WarehouseId": "HOL-DC",
+      "AvailableQty": 1560
+    },
+    {
+      "ItemId": "AVO-48",
+      "SiteId": "GRP",
+      "WarehouseId": "GRP-DC",
+      "AvailableQty": 2050
+    },
+    {
+      "ItemId": "AVO-BAG5",
+      "SiteId": "GRP",
+      "WarehouseId": "GRP-DC",
+      "AvailableQty": 800
+    },
+    {
+      "ItemId": "APL-HC3",
+      "SiteId": "GRP",
+      "WarehouseId": "GRP-DC",
+      "AvailableQty": 3400
+    },
+    {
+      "ItemId": "APL-GALA",
+      "SiteId": "GRP",
+      "WarehouseId": "GRP-DC",
+      "AvailableQty": 1250
+    },
+    {
+      "ItemId": "TOM-ROM25",
+      "SiteId": "GRP",
+      "WarehouseId": "GRP-DC",
+      "AvailableQty": 1420
+    },
+    {
+      "ItemId": "TOM-GRP12",
+      "SiteId": "GRP",
+      "WarehouseId": "GRP-DC",
+      "AvailableQty": 1010
+    },
+    {
+      "ItemId": "CIT-NAV88",
+      "SiteId": "GRP",
+      "WarehouseId": "GRP-DC",
+      "AvailableQty": 1900
+    },
+    {
+      "ItemId": "CIT-LEM115",
+      "SiteId": "GRP",
+      "WarehouseId": "GRP-DC",
+      "AvailableQty": 900
+    }
+  ],
+  "substitutions": [
+    {
+      "FromItemId": "BLU-PT12",
+      "ToItemId": "BLU-ORG6",
+      "Direction": "OneWay",
+      "Rank": 1,
+      "QtyRatio": 2
+    },
+    {
+      "FromItemId": "BLU-18OZ8",
+      "ToItemId": "BLU-PT12",
+      "Direction": "OneWay",
+      "Rank": 1,
+      "QtyRatio": 1.5
+    },
+    {
+      "FromItemId": "STR-1LB8",
+      "ToItemId": "STR-2LB4",
+      "Direction": "Bidirectional",
+      "Rank": 1,
+      "QtyRatio": 0.5
+    },
+    {
+      "FromItemId": "LET-ROM12",
+      "ToItemId": "LET-BUT12",
+      "Direction": "OneWay",
+      "Rank": 2,
+      "QtyRatio": 1
+    }
+  ]
+}

@@ -115,6 +115,24 @@ async function getToken(c) {
 
 let snapshotCache = { key: null, value: null, expiresAt: 0 };
 
+// Demo snapshot override (opt-in, local only). When D365_SNAPSHOT_FILE names a
+// JSON file in the raw GetOpenSalesOrders shape, getSnapshot() reads that file
+// instead of calling D365, and the outbound send writes to the local outbox
+// instead of SysMessageService. Unset = live D365, exactly as before; the
+// hosted Function App never sets it. Used by demo-kit/ to record the booth
+// video from the generated Bluestem data set (demo-kit/seed.mjs).
+const SNAPSHOT_FILE = (process.env.D365_SNAPSHOT_FILE || '').trim();
+function snapshotFromFile() {
+  const fs = require('fs');
+  const path = require('path');
+  const file = path.isAbsolute(SNAPSHOT_FILE) ? SNAPSHOT_FILE : path.join(__dirname, '..', SNAPSHOT_FILE);
+  if (!fs.existsSync(file)) {
+    throw new D365Error(`D365_SNAPSHOT_FILE not found: ${file}`, { status: 503 });
+  }
+  return normalizeSnapshot(JSON.parse(fs.readFileSync(file, 'utf8')));
+}
+const usingSnapshotFile = () => !!SNAPSHOT_FILE;
+
 function normalizeSnapshot(raw) {
   const commodities = asArray(get(raw, 'commodities')).map(c => {
     const id = pick(c, 'commodityId', 'CommodityId');
@@ -180,6 +198,7 @@ function normalizeSnapshot(raw) {
  * legal entity. Pass a company to override the profile's value.
  */
 async function getSnapshot(companyOverride) {
+  if (usingSnapshotFile()) return snapshotFromFile();
   assertConfigured();
   const c = getActiveConfig();
   const company = (companyOverride || c.company || '').trim();
@@ -320,6 +339,18 @@ function resolveCompany(c, companyOverride) {
 
 /** Shared SysMessageService POST + result shaping for both message types. */
 async function postQueueMessage(c, message, base) {
+  if (usingSnapshotFile()) {
+    // Demo snapshot mode: nothing leaves the machine. Append to the local
+    // outbox (the Service Bus stand-in the landing page's Batches table reads).
+    const { publishBatch } = require('./messageQueue');
+    const content = JSON.parse(message._messageContent);
+    const pub = publishBatch({
+      batchId: base.batchId, createdUtc: new Date().toISOString(), createdBy: 'demo@local',
+      strategy: base.messageType === SUB_MESSAGE_TYPE ? 'Substitution' : (base.strategy || 'Proration'),
+      commodityId: base.commodityId || null, lines: content.Records,
+    });
+    return { ok: true, ...base, url: pub.outbox, status: 202, response: { demo: true } };
+  }
   const token = await getToken(c);
   const url = `${c.baseUrl}${SEND_MESSAGE_PATH}`;
 
@@ -356,9 +387,9 @@ async function postQueueMessage(c, message, base) {
  * Returns { ok, batchId, recordCount, skipped, … } — `error` set when not ok.
  */
 async function sendProrationBatch(lines, { company: companyOverride, batchId } = {}) {
-  assertConfigured();
+  if (!usingSnapshotFile()) assertConfigured();
   const c = getActiveConfig();
-  const company = resolveCompany(c, companyOverride);
+  const company = usingSnapshotFile() ? (c.company || 'BFP') : resolveCompany(c, companyOverride);
 
   const records = asArray(lines).filter(l => num(l.allocatedQty) > 0);
   const skipped = asArray(lines).length - records.length;
@@ -377,9 +408,9 @@ async function sendProrationBatch(lines, { company: companyOverride, batchId } =
  * subs: [{ salesId, lineNum, fromItemId, toItemId, qty, remainingOriginalQty }]
  */
 async function sendSubstitutionBatch(subs, { company: companyOverride, batchId } = {}) {
-  assertConfigured();
+  if (!usingSnapshotFile()) assertConfigured();
   const c = getActiveConfig();
-  const company = resolveCompany(c, companyOverride);
+  const company = usingSnapshotFile() ? (c.company || 'BFP') : resolveCompany(c, companyOverride);
 
   const records = asArray(subs).filter(s => num(s.qty) > 0 && s.fromItemId && s.toItemId);
   if (records.length === 0) {

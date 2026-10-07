@@ -219,6 +219,10 @@ app.post('/api/setup/test', route(async (req, res) => {
 const PORT = process.env.PORT || 5173;
 app.listen(PORT, () => {
   console.log(`Sales Proration shell listening on http://localhost:${PORT}`);
+  if (process.env.D365_SNAPSHOT_FILE) {
+    console.log(`[D365] Demo snapshot mode: reading ${process.env.D365_SNAPSHOT_FILE}; outbound sends go to the local outbox. No D365 calls.`);
+    return;
+  }
   const missing = missingD365Settings();
   if (missing.length) {
     console.warn(`[D365] Not fully configured (missing: ${missing.join(', ')}). ` +
