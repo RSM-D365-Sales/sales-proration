@@ -249,6 +249,7 @@ public class RSMSubstitutionRuleBatchContract
     str  batchId;
     List rules;
     List customerPolicies;
+    List substitutionGroups;
 
     [DataMemberAttribute('BatchId')]
     public str parmBatchId(str _v = batchId) { batchId = _v; return batchId; }
@@ -260,6 +261,10 @@ public class RSMSubstitutionRuleBatchContract
     [DataMemberAttribute('CustomerPolicies'),
      DataCollectionAttribute(Types::Class, classStr(RSMSubstitutionPolicyRecordContract))]
     public List parmCustomerPolicies(List _v = customerPolicies) { customerPolicies = _v; return customerPolicies ? customerPolicies : new List(Types::Class); }
+
+    [DataMemberAttribute('SubstitutionGroups'),
+     DataCollectionAttribute(Types::Class, classStr(RSMSubstitutionGroupRecordContract))]
+    public List parmSubstitutionGroups(List _v = substitutionGroups) { substitutionGroups = _v; return substitutionGroups ? substitutionGroups : new List(Types::Class); }
 
     public static RSMSubstitutionRuleBatchContract fromJson(str _json)
     {
@@ -294,4 +299,39 @@ public class RSMSubstitutionPolicyRecordContract
     [DataMemberAttribute('CustAccount')]        public str parmCustAccount       (str _v = custAccount)        { custAccount = _v; return custAccount; }
     [DataMemberAttribute('SubstitutionPolicy')] public str parmSubstitutionPolicy(str _v = substitutionPolicy) { substitutionPolicy = _v; return substitutionPolicy; }
     [DataMemberAttribute('Note')]               public str parmNote              (str _v = note)               { note = _v; return note; }
+}
+
+// -----------------------------------------------------------------------------
+// Interchangeable groups (RSMItemSubstitutionGroup + members). Used both ways:
+// inbound in RSMSubstitutionRuleBatchContract.SubstitutionGroups (Action set),
+// outbound in the snapshot feed's substitutionGroups collection (Action blank).
+// -----------------------------------------------------------------------------
+[DataContractAttribute]
+public class RSMSubstitutionGroupRecordContract
+{
+    str action; str groupId; str name; str unit; str priceBasis; date validFrom; date validTo; str note;
+    List members;
+
+    [DataMemberAttribute('Action')]     public str  parmAction    (str _v = action)      { action = _v; return action; }
+    [DataMemberAttribute('GroupId')]    public str  parmGroupId   (str _v = groupId)     { groupId = _v; return groupId; }
+    [DataMemberAttribute('Name')]       public str  parmName      (str _v = name)        { name = _v; return name; }
+    [DataMemberAttribute('Unit')]       public str  parmUnit      (str _v = unit)        { unit = _v; return unit; }
+    [DataMemberAttribute('PriceBasis')] public str  parmPriceBasis(str _v = priceBasis)  { priceBasis = _v; return priceBasis; }
+    [DataMemberAttribute('ValidFrom')]  public date parmValidFrom (date _v = validFrom)  { validFrom = _v; return validFrom; }
+    [DataMemberAttribute('ValidTo')]    public date parmValidTo   (date _v = validTo)    { validTo = _v; return validTo; }
+    [DataMemberAttribute('Note')]       public str  parmNote      (str _v = note)        { note = _v; return note; }
+
+    [DataMemberAttribute('Members'),
+     DataCollectionAttribute(Types::Class, classStr(RSMSubstitutionGroupMemberContract))]
+    public List parmMembers(List _v = members) { members = _v; return members ? members : new List(Types::Class); }
+}
+
+[DataContractAttribute]
+public class RSMSubstitutionGroupMemberContract
+{
+    str itemId; real equivQty; int sequence;
+
+    [DataMemberAttribute('ItemId')]   public str  parmItemId  (str _v = itemId)     { itemId = _v; return itemId; }
+    [DataMemberAttribute('EquivQty')] public real parmEquivQty(real _v = equivQty)  { equivQty = _v; return equivQty; }
+    [DataMemberAttribute('Sequence')] public int  parmSequence(int _v = sequence)   { sequence = _v; return sequence; }
 }

@@ -5,8 +5,10 @@
 //          `rsmSalesSubstitutionRuleMessage`. Applies substitution master-data
 //          changes made on the web app's Substitutions page (or approved for a
 //          customer in the planner's picker):
-//            · Rules            upsert / delete RSMItemSubstitution rows
-//            · CustomerPolicies set CustTable.RSMSubstitutionPolicy + note
+//            · Rules              upsert / delete RSMItemSubstitution rows
+//            · SubstitutionGroups upsert / delete RSMItemSubstitutionGroup and
+//                                 replace its RSMItemSubstitutionGroupMember rows
+//            · CustomerPolicies   set CustTable.RSMSubstitutionPolicy + note
 //
 // The app publishes this message BEFORE any substitution batch that relies on
 // a rule approved in the same session, so RSMSubstitutionConsumer finds the
@@ -18,6 +20,9 @@
 //                 "CustAccount", "Direction", "Rank", "QtyRatio",
 //                 "PriceBasis": "OriginalItemPrice"|"SubstituteItemPrice",
 //                 "ValidFrom", "ValidTo" }],
+//     "SubstitutionGroups": [{ "Action", "GroupId", "Name", "Unit", "PriceBasis",
+//                 "ValidFrom", "ValidTo", "Note",
+//                 "Members": [{ "ItemId", "EquivQty", "Sequence" }] }],
 //     "CustomerPolicies": [{ "CustAccount", "SubstitutionPolicy": "Standard"|"CustomerOnly"|"Never", "Note" }] }
 //
 // Security: the publishing endpoint requires Proration.Admin; on the D365
@@ -90,7 +95,57 @@ public class RSMSubstitutionRuleConsumer
             results.addEnd(RSMProrationEventBuilder::ruleApplied(rec.parmRuleId(), isNew ? 'Created' : 'Updated'));
         }
 
-        // 2. Customer policies
+        // 2. Interchangeable groups. An upsert replaces the whole member list,
+        //    so the group in D365 always matches what the planner saw.
+        ListEnumerator ge = _batch.parmSubstitutionGroups().getEnumerator();
+        while (ge.moveNext())
+        {
+            RSMSubstitutionGroupRecordContract grec = ge.current();
+            RSMItemSubstitutionGroup grp = RSMItemSubstitutionGroup::find(grec.parmGroupId(), true);
+
+            if (grec.parmAction() == 'Delete')
+            {
+                if (grp) { grp.delete(); }   // cascades to the members
+                results.addEnd(RSMProrationEventBuilder::ruleApplied(grec.parmGroupId(), 'Group deleted'));
+                continue;
+            }
+
+            // Validate every member before touching anything.
+            str bad = RSMSubstitutionRuleConsumer::checkGroupMembers(grec);
+            if (bad)
+            {
+                results.addEnd(RSMProrationEventBuilder::ruleFailed(grec.parmGroupId(), bad));
+                continue;
+            }
+
+            boolean isNew = !grp.RecId;
+            grp.GroupId    = grec.parmGroupId();
+            grp.Name       = grec.parmName();
+            grp.Unit       = grec.parmUnit();
+            grp.PriceBasis = symbol2Enum(enumNum(RSMSubstitutionPriceBasis), grec.parmPriceBasis());
+            grp.ValidFrom  = grec.parmValidFrom();
+            grp.ValidTo    = grec.parmValidTo();
+            grp.Note       = grec.parmNote();
+            if (isNew) { grp.insert(); } else { grp.update(); }
+
+            RSMItemSubstitutionGroupMember member;
+            delete_from member where member.GroupId == grp.GroupId;
+
+            ListEnumerator me = grec.parmMembers().getEnumerator();
+            while (me.moveNext())
+            {
+                RSMSubstitutionGroupMemberContract mrec = me.current();
+                member.clear();
+                member.GroupId  = grp.GroupId;
+                member.ItemId   = mrec.parmItemId();
+                member.EquivQty = mrec.parmEquivQty();
+                member.Sequence = mrec.parmSequence();
+                member.insert();
+            }
+            results.addEnd(RSMProrationEventBuilder::ruleApplied(grec.parmGroupId(), isNew ? 'Group created' : 'Group updated'));
+        }
+
+        // 3. Customer policies
         ListEnumerator pe = _batch.parmCustomerPolicies().getEnumerator();
         while (pe.moveNext())
         {
@@ -110,6 +165,34 @@ public class RSMSubstitutionRuleConsumer
         ttscommit;
 
         return RSMProrationEventBuilder::batchApplied(_batch.parmBatchId(), results);
+    }
+
+    /// <summary>Blank when the group's members are valid, else the reason. Same checks as Subs.validateGroup.</summary>
+    private static str checkGroupMembers(RSMSubstitutionGroupRecordContract _grec)
+    {
+        Set  seen = new Set(Types::String);
+        str  commodity;
+        int  n;
+
+        if (!_grec.parmGroupId() || !_grec.parmName())
+        {
+            return 'Group id and name are required';
+        }
+        ListEnumerator me = _grec.parmMembers().getEnumerator();
+        while (me.moveNext())
+        {
+            RSMSubstitutionGroupMemberContract m = me.current();
+            InventTable it = InventTable::find(m.parmItemId());
+            if (!it)                     { return strFmt('Unknown item %1', m.parmItemId()); }
+            if (m.parmEquivQty() <= 0)   { return strFmt('Equivalent qty must be > 0 for %1', m.parmItemId()); }
+            if (seen.in(m.parmItemId())) { return strFmt('%1 appears twice', m.parmItemId()); }
+            seen.add(m.parmItemId());
+            str c = EcoResProduct::find(it.Product).RSMCommodityId;
+            if (n && c != commodity)     { return 'Every member must be in the same buyer group'; }
+            commodity = c;
+            n++;
+        }
+        return n < 2 ? 'A group needs at least two items' : '';
     }
 
     /// <summary>Existing row for an upsert/delete: by RuleId, else by the (From, To, Customer) key.</summary>

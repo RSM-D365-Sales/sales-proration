@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxTable xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+  <Name>RSMItemSubstitutionGroup</Name>
+  <SourceCode>
+    <Declaration><![CDATA[
+/// <summary>
+/// Interchangeable group: a set of items (RSMItemSubstitutionGroupMember) that
+/// can stand in for one another, each measured by an equivalent quantity per
+/// case. The generic layer under RSMItemSubstitution: it applies to every
+/// customer whose CustTable.RSMSubstitutionPolicy is Standard, after that
+/// customer's own rules and the explicit all-customer rules.
+/// Ratio between two members = EquivQty(ordered) / EquivQty(substitute).
+/// </summary>
+public class RSMItemSubstitutionGroup extends common
+{
+}
+]]></Declaration>
+    <Methods>
+      <Method>
+        <Name>find</Name>
+        <Source><![CDATA[
+public static RSMItemSubstitutionGroup find(Num _groupId, boolean _forUpdate = false)
+{
+    RSMItemSubstitutionGroup grp;
+    grp.selectForUpdate(_forUpdate);
+    if (_groupId)
+    {
+        select firstonly grp where grp.GroupId == _groupId;
+    }
+    return grp;
+}
+]]></Source>
+      </Method>
+      <Method>
+        <Name>isActive</Name>
+        <Source><![CDATA[
+public boolean isActive(TransDate _asOf = systemDateGet())
+{
+    return (!this.ValidFrom || this.ValidFrom <= _asOf)
+        && (!this.ValidTo   || this.ValidTo   >= _asOf);
+}
+]]></Source>
+      </Method>
+      <Method>
+        <Name>match</Name>
+        <Source><![CDATA[
+/// <summary>
+/// The active group that holds both items, as [GroupId, ratio, PriceBasis]
+/// (ratio = substitute units per ordered unit), or conNull() when none does.
+/// When several groups hold the pair, the one where the substitute ranks
+/// highest (lowest Sequence) wins. Mirrors Subs.groupRules in the web app.
+/// Callers check the customer's policy first: groups only serve Standard.
+/// </summary>
+public static container match(ItemId _orderedItemId, ItemId _substituteItemId, TransDate _asOf = systemDateGet())
+{
+    RSMItemSubstitutionGroupMember fromM, toM;
+    RSMItemSubstitutionGroup       grp;
+
+    while select toM
+        order by toM.Sequence
+        where toM.ItemId == _substituteItemId
+    join fromM
+        where fromM.GroupId == toM.GroupId
+           && fromM.ItemId  == _orderedItemId
+    join grp
+        where grp.GroupId == toM.GroupId
+    {
+        if (grp.isActive(_asOf) && fromM.EquivQty > 0 && toM.EquivQty > 0)
+        {
+            return [grp.GroupId, fromM.EquivQty / toM.EquivQty, grp.PriceBasis];
+        }
+    }
+    return conNull();
+}
+]]></Source>
+      </Method>
+    </Methods>
+  </SourceCode>
+  <Label>Interchangeable item groups</Label>
+  <DeveloperDocumentation>RSM Sales Proration: interchangeable item groups, the default substitutes for every Standard-policy customer.</DeveloperDocumentation>
+  <TableGroup>Group</TableGroup>
+  <CacheLookup>Found</CacheLookup>
+  <CreatedDateTime>Yes</CreatedDateTime>
+  <ModifiedBy>Yes</ModifiedBy>
+  <ModifiedDateTime>Yes</ModifiedDateTime>
+  <Tags>RSM_SalesProration</Tags>
+  <DeleteActions>
+    <AxTableDeleteAction>
+      <Name>Members</Name>
+      <DeleteAction>Cascade</DeleteAction>
+      <Relation>RSMItemSubstitutionGroup</Relation>
+      <Table>RSMItemSubstitutionGroupMember</Table>
+    </AxTableDeleteAction>
+  </DeleteActions>
+  <FieldGroups>
+    <AxTableFieldGroup>
+      <Name>Overview</Name>
+      <Label>Overview</Label>
+      <Fields>
+        <AxTableFieldGroupField><DataField>GroupId</DataField></AxTableFieldGroupField>
+        <AxTableFieldGroupField><DataField>Name</DataField></AxTableFieldGroupField>
+        <AxTableFieldGroupField><DataField>Unit</DataField></AxTableFieldGroupField>
+        <AxTableFieldGroupField><DataField>PriceBasis</DataField></AxTableFieldGroupField>
+        <AxTableFieldGroupField><DataField>ValidFrom</DataField></AxTableFieldGroupField>
+        <AxTableFieldGroupField><DataField>ValidTo</DataField></AxTableFieldGroupField>
+        <AxTableFieldGroupField><DataField>Note</DataField></AxTableFieldGroupField>
+      </Fields>
+    </AxTableFieldGroup>
+  </FieldGroups>
+  <Fields>
+    <AxTableField xmlns="" i:type="AxTableFieldString">
+      <Name>GroupId</Name>
+      <ExtendedDataType>Num</ExtendedDataType>
+      <Label>Group</Label>
+      <HelpText>Stable identifier shared with the web app (upsert key for RSMSubstitutionRuleConsumer).</HelpText>
+      <Mandatory>Yes</Mandatory>
+    </AxTableField>
+    <AxTableField xmlns="" i:type="AxTableFieldString">
+      <Name>Name</Name>
+      <ExtendedDataType>Description</ExtendedDataType>
+      <Label>Name</Label>
+      <Mandatory>Yes</Mandatory>
+    </AxTableField>
+    <AxTableField xmlns="" i:type="AxTableFieldString">
+      <Name>Unit</Name>
+      <ExtendedDataType>Description</ExtendedDataType>
+      <Label>Equivalence unit</Label>
+      <HelpText>What each member's equivalent quantity is measured in (lb, count, oz).</HelpText>
+    </AxTableField>
+    <AxTableField xmlns="" i:type="AxTableFieldEnum">
+      <Name>PriceBasis</Name>
+      <EnumType>RSMSubstitutionPriceBasis</EnumType>
+      <Label>Bill substitute at</Label>
+    </AxTableField>
+    <AxTableField xmlns="" i:type="AxTableFieldDate">
+      <Name>ValidFrom</Name>
+      <ExtendedDataType>TransDate</ExtendedDataType>
+      <Label>Valid from</Label>
+    </AxTableField>
+    <AxTableField xmlns="" i:type="AxTableFieldDate">
+      <Name>ValidTo</Name>
+      <ExtendedDataType>TransDate</ExtendedDataType>
+      <Label>Valid to</Label>
+    </AxTableField>
+    <AxTableField xmlns="" i:type="AxTableFieldString">
+      <Name>Note</Name>
+      <ExtendedDataType>Description255</ExtendedDataType>
+      <Label>Note</Label>
+    </AxTableField>
+  </Fields>
+  <FullTextIndexes />
+  <Indexes>
+    <AxTableIndex>
+      <Name>GroupIdIdx</Name>
+      <AllowDuplicates>No</AllowDuplicates>
+      <Fields>
+        <AxTableIndexField><DataField>GroupId</DataField></AxTableIndexField>
+      </Fields>
+    </AxTableIndex>
+  </Indexes>
+  <PrimaryIndex>GroupIdIdx</PrimaryIndex>
+  <ReplacementKey>GroupIdIdx</ReplacementKey>
+  <Mappings />
+  <Relations />
+</AxTable>

@@ -5,9 +5,11 @@
 //          `rsmSalesSubstituteAcceleratorMessage`. Applies an approved item
 //          substitution batch: checks the customer's substitution policy
 //          (CustTable.RSMSubstitutionPolicy), validates each record against
-//          the RSMItemSubstitution whitelist, reduces (or closes) the original
-//          sales line, and creates a new line for the substitute item priced
-//          per the rule's PriceBasis.
+//          the RSMItemSubstitution whitelist (customer rule, then all-customer
+//          rule) and, for Standard customers, the interchangeable groups
+//          (RSMItemSubstitutionGroup), reduces (or closes) the original sales
+//          line, and creates a new line for the substitute item priced per
+//          the matching rule's or group's PriceBasis.
 //
 // Kept separate from RSMProrationBatchConsumer on purpose — substitution does
 // real order surgery (new line, pricing, trade agreements), and a failed
@@ -53,12 +55,29 @@ public class RSMSubstitutionConsumer
                 lineResults.addEnd(RSMProrationEventBuilder::lineFailed(rec, 'Customer never accepts substitutes'));
                 continue;
             }
+            // Explicit rule first; otherwise the interchangeable group the two
+            // items share (Standard-policy customers only).
+            real                      ratio;
+            RSMSubstitutionPriceBasis priceBasis;
             RSMItemSubstitution rule = RSMItemSubstitution::findForCustomer(
                 rec.parmOriginalItemId(), rec.parmSubstituteItemId(), cust);
-            if (!rule)
+            if (rule)
             {
-                lineResults.addEnd(RSMProrationEventBuilder::lineFailed(rec, 'No active substitution rule'));
-                continue;
+                ratio      = rule.ratioFrom(rec.parmOriginalItemId());
+                priceBasis = rule.PriceBasis;
+            }
+            else
+            {
+                container grpMatch = cust.RSMSubstitutionPolicy == RSMSubstitutionPolicy::Standard
+                    ? RSMItemSubstitutionGroup::match(rec.parmOriginalItemId(), rec.parmSubstituteItemId())
+                    : conNull();
+                if (grpMatch == conNull())
+                {
+                    lineResults.addEnd(RSMProrationEventBuilder::lineFailed(rec, 'No active substitution rule or group'));
+                    continue;
+                }
+                ratio      = conPeek(grpMatch, 2);
+                priceBasis = conPeek(grpMatch, 3);
             }
 
             if (rec.parmSubstituteQty() <= 0 || rec.parmRemainingOriginalQty() < 0)
@@ -90,11 +109,11 @@ public class RSMSubstitutionConsumer
             //    ordered item: covered = qty / ratio, so the unit price is
             //    orderedPrice / ratio (at a 0.75 ratio, each 3ct case is billed
             //    at 4/3 of the bulk carton price).
-            if (rule.PriceBasis == RSMSubstitutionPriceBasis::OriginalItemPrice)
+            if (priceBasis == RSMSubstitutionPriceBasis::OriginalItemPrice)
             {
                 subLine.selectForUpdate(true);
                 subLine.SalesPrice = CurrencyExchangeHelper::price(
-                    orderedPrice / rule.ratioFrom(rec.parmOriginalItemId()), original.CurrencyCode);
+                    orderedPrice / ratio, original.CurrencyCode);
                 subLine.LineAmount = subLine.calcLineAmount();
                 subLine.update();
             }

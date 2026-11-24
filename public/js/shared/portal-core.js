@@ -76,9 +76,10 @@ function getCommodityDetail(snap, id) {
   // its open lines (their policy decides which of those rules apply).
   const itemSet = new Set(itemList.map(i => i.itemId));
   const subRules = substitutions.filter(s => itemSet.has(s.fromItemId) || itemSet.has(s.toItemId));
+  const subGroups = (snap.substitutionGroups || []).filter(g => g.members.some(m => itemSet.has(m.itemId)));
   const lineCustomers = customers.filter(x => custIds.has(x.customerId));
 
-  return { commodity: c, items: itemDetail, substitutions: subRules, customers: lineCustomers, asOf: asOfOf(snap) };
+  return { commodity: c, items: itemDetail, substitutions: subRules, substitutionGroups: subGroups, customers: lineCustomers, asOf: asOfOf(snap) };
 }
 
 /**
@@ -173,6 +174,7 @@ function substitutionBook(snap) {
       openLines: c.openLines, needsProration: c.needsProration,
     })),
     rules: (snap.substitutions || []).map(r => ({ ...r, status: Subs.ruleStatus(r, asOf) })),
+    groups: (snap.substitutionGroups || []).map(g => ({ ...g, status: Subs.ruleStatus(g, asOf) })),
   };
 }
 
@@ -180,7 +182,15 @@ function substitutionBook(snap) {
 function cleanRulePublish(body, snap) {
   const rules = Array.isArray(body?.rules) ? body.rules : [];
   const policies = Array.isArray(body?.policies) ? body.policies : [];
-  if (!rules.length && !policies.length) throw httpError(400, 'rules or policies required');
+  const groups = Array.isArray(body?.groups) ? body.groups : [];
+  if (!rules.length && !policies.length && !groups.length) throw httpError(400, 'rules, groups or policies required');
+  for (const ch of groups) {
+    if (!ch || !ch.group || !ch.group.groupId || !['Upsert', 'Delete'].includes(ch.action)) throw httpError(400, 'each group change needs action Upsert|Delete and a group with a groupId');
+    if (ch.action === 'Upsert') {
+      const errs = Subs.validateGroup(ch.group, snap.items);
+      if (errs.length) throw httpError(400, `Group ${ch.group.name || ch.group.groupId}: ${errs[0]}`);
+    }
+  }
   for (const ch of rules) {
     if (!ch || !ch.rule || !['Upsert', 'Delete'].includes(ch.action)) throw httpError(400, 'each rule change needs action Upsert|Delete and a rule');
     if (ch.action === 'Upsert') {
@@ -193,7 +203,7 @@ function cleanRulePublish(body, snap) {
     if (!custIds.has(p?.customerId)) throw httpError(400, `Unknown customer ${p?.customerId}`);
     if (!['Standard', 'CustomerOnly', 'Never'].includes(p.substitutionPolicy)) throw httpError(400, `Invalid policy for ${p.customerId}`);
   }
-  return { rules, policies };
+  return { rules, policies, groups };
 }
 
 /** Shape checks shared by every host before substitutions are published. */

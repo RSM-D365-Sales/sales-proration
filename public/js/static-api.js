@@ -64,6 +64,7 @@
       asOf: shift(raw.asOf, days),
       Demand: raw.Demand.map(d => ({ ...d, RequestedShipDate: shift(d.RequestedShipDate, days) })),
       substitutions: (raw.substitutions || []).map(s => ({ ...s, ValidFrom: shift(s.ValidFrom, days), ValidTo: shift(s.ValidTo, days) })),
+      substitutionGroups: (raw.substitutionGroups || []).map(g => ({ ...g, ValidFrom: shift(g.ValidFrom, days), ValidTo: shift(g.ValidTo, days) })),
     };
   }
   function rebaseOutbox(list, days) {
@@ -77,6 +78,7 @@
     for (const ch of read(KEYS.applied, [])) {
       snap.substitutions = Subs.applyRuleChanges(snap.substitutions, ch.rules);
       snap.customers = Subs.applyPolicyChanges(snap.customers, ch.policies);
+      snap.substitutionGroups = Subs.applyGroupChanges(snap.substitutionGroups, ch.groups);
     }
     return snap;
   }
@@ -113,10 +115,11 @@
     const subs = PortalCore.checkSubstitutions(body.substitutions);
     const snap = await snapshot();
     // Same check RSMSubstitutionConsumer makes: every record needs an active
-    // rule for that customer, or D365 rejects the line.
+    // rule or interchangeable group for that customer, or D365 rejects the line.
     const custOf = Object.fromEntries(snap.demand.map(d => [`${d.salesId}:${d.lineNum}`, d.customerId]));
     const byId = Object.fromEntries(snap.customers.map(c => [c.customerId, c]));
-    const missing = subs.filter(s => !Subs.resolveRule(snap.substitutions, byId[custOf[`${s.salesId}:${s.lineNum}`]], s.fromItemId, s.toItemId, snap.asOf));
+    const allRules = Subs.withGroups(snap.substitutions, snap.substitutionGroups);
+    const missing = subs.filter(s => !Subs.resolveRule(allRules, byId[custOf[`${s.salesId}:${s.lineNum}`]], s.fromItemId, s.toItemId, snap.asOf));
     if (missing.length) {
       throw PortalCore.httpError(400, `No active substitution rule for ${missing.map(s => `${s.salesId}/${s.lineNum}`).join(', ')} — publish the rule first.`);
     }
@@ -130,7 +133,7 @@
     const clean = PortalCore.cleanRulePublish(body, snap);
     const env = Messages.buildRuleMessage(clean, await company(), crypto.randomUUID());
     const content = JSON.parse(env._messageContent);
-    const result = await record(env, { strategy: 'Substitution rules', commodityId: '', records: [...content.Rules, ...content.CustomerPolicies] });
+    const result = await record(env, { strategy: 'Substitution rules', commodityId: '', records: [...content.Rules, ...content.SubstitutionGroups, ...content.CustomerPolicies] });
     write(KEYS.applied, [...read(KEYS.applied, []), clean]); // "D365 applied it"
     return result;
   }

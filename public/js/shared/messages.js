@@ -68,7 +68,7 @@ function buildSubstitutionMessage(subs, company, batchId) {
  *   rules:    [{ action: 'Upsert'|'Delete', rule: { ruleId, fromItemId, … } }]
  *   policies: [{ customerId, substitutionPolicy, substitutionNote }]
  */
-function buildRuleMessage({ rules = [], policies = [] } = {}, company, batchId) {
+function buildRuleMessage({ rules = [], policies = [], groups = [] } = {}, company, batchId) {
   return envelope(company, RULE_MESSAGE_TYPE, {
     BatchId: batchId,
     Rules: asArray(rules).map(({ action, rule: r }) => ({
@@ -88,6 +88,21 @@ function buildRuleMessage({ rules = [], policies = [] } = {}, company, batchId) 
       CustAccount:        p.customerId,
       SubstitutionPolicy: p.substitutionPolicy,
       Note:               String(p.substitutionNote || ''),
+    })),
+    // Interchangeable groups (RSMItemSubstitutionGroup + members). An Upsert
+    // replaces the group's member list; Sequence 1 is the preferred substitute.
+    SubstitutionGroups: asArray(groups).map(({ action, group: g }) => ({
+      Action:     action === 'Delete' ? 'Delete' : 'Upsert',
+      GroupId:    String(g.groupId || ''),
+      Name:       String(g.name || ''),
+      Unit:       String(g.unit || ''),
+      PriceBasis: g.priceBasis === 'Substitute' ? 'SubstituteItemPrice' : 'OriginalItemPrice',
+      ValidFrom:  g.validFrom || '',
+      ValidTo:    g.validTo || '',
+      Note:       String(g.note || ''),
+      Members:    action === 'Delete' ? [] : asArray(g.members).map((m, i) => ({
+        ItemId: m.itemId, EquivQty: num(m.equivQty, 0), Sequence: i + 1,
+      })),
     })),
   });
 }

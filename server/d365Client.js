@@ -292,19 +292,19 @@ async function sendSubstitutionBatch(subs, { company: companyOverride, batchId }
 
 /**
  * POST one SysMessageService.SendMessage carrying substitution rule upserts /
- * deletes and customer policy changes (message type
+ * deletes, interchangeable group changes and customer policy changes (message type
  * rsmSalesSubstitutionRuleMessage, consumed by RSMSubstitutionRuleConsumer).
  */
-async function sendRuleChanges({ rules = [], policies = [] } = {}, { company: companyOverride, batchId } = {}) {
+async function sendRuleChanges({ rules = [], policies = [], groups = [] } = {}, { company: companyOverride, batchId } = {}) {
   if (!usingSnapshotFile()) assertConfigured();
   const c = getActiveConfig();
   const company = usingSnapshotFile() ? (c.company || 'BFP') : resolveCompany(c, companyOverride);
-  if (!rules.length && !policies.length) {
-    throw new D365Error('No rule or policy changes to send.', { status: 400 });
+  if (!rules.length && !policies.length && !groups.length) {
+    throw new D365Error('No rule, group or policy changes to send.', { status: 400 });
   }
   const id = batchId || crypto.randomUUID();
-  return postQueueMessage(c, buildRuleMessage({ rules, policies }, company, id),
-    { batchId: id, messageType: RULE_MESSAGE_TYPE, company, recordCount: rules.length + policies.length, skipped: 0 });
+  return postQueueMessage(c, buildRuleMessage({ rules, policies, groups }, company, id),
+    { batchId: id, messageType: RULE_MESSAGE_TYPE, company, recordCount: rules.length + groups.length + policies.length, skipped: 0 });
 }
 
 module.exports = {

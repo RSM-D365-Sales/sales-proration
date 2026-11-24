@@ -332,3 +332,75 @@ test('cleanRulePublish: rejects unknown customers, bad policies and invalid rule
   assert.throws(() => core.cleanRulePublish({ rules: [{ action: 'Upsert', rule: rule({ fromItemId: 'A', toItemId: 'A' }) }] }, snap), /itself/);
   assert.equal(core.cleanRulePublish({ rules: [{ action: 'Delete', rule: rule({ ruleId: 'R1', fromItemId: 'A', toItemId: 'B' }) }] }, snap).rules.length, 1);
 });
+
+// ---- Interchangeable groups (the generic layer under the rules) ---------------
+
+const PEPPERS = { groupId: 'GRP-PEP', name: 'Sweet peppers', unit: 'lb', priceBasis: 'Original', validFrom: '', validTo: '',
+  members: [{ itemId: '3CT', equivQty: 14.7 }, { itemId: 'TWST', equivQty: 12 }, { itemId: 'BELL', equivQty: 11 }] };
+
+test('groupRules: every member covers every other, ratio = equiv(ordered) / equiv(substitute), ranked by member order', () => {
+  const vr = Subs.groupRules([PEPPERS]);
+  assert.equal(vr.length, 6);
+  const b3 = vr.find(r => r.fromItemId === 'BELL' && r.toItemId === '3CT');
+  assert.ok(Math.abs(b3.qtyRatio - 11 / 14.7) < 1e-9);
+  assert.equal(b3.rank, 1);
+  assert.equal(vr.find(r => r.fromItemId === 'BELL' && r.toItemId === 'TWST').rank, 2);
+  assert.ok(vr.every(r => r.groupId === 'GRP-PEP' && r.ruleId === 'GRP-PEP' && r.customerId === ''));
+});
+
+test('substitutesFor with groups: customer rule, then all-customer rule, then group; explicit rule wins the same pair', () => {
+  const rules = Subs.withGroups([
+    rule({ fromItemId: 'BELL', toItemId: 'TWST', customerId: 'GL' }),
+    rule({ fromItemId: 'BELL', toItemId: '3CT', qtyRatio: 0.75 }),
+  ], [PEPPERS]);
+  const gl = Subs.substitutesFor(rules, { customerId: 'GL', substitutionPolicy: 'Standard' }, 'BELL', ASOF);
+  assert.deepEqual(gl.map(c => [c.toItemId, c.scope]), [['TWST', 'Customer'], ['3CT', 'All customers']]);
+  assert.equal(gl[1].ratio, 0.75, 'explicit rule ratio, not the group ratio');
+  const other = Subs.substitutesFor(rules, std, 'TWST', ASOF);
+  assert.deepEqual(other.map(c => [c.toItemId, c.scope]), [['3CT', 'Group'], ['BELL', 'Group']]);
+});
+
+test('groups never apply to CustomerOnly or Never customers, nor outside their validity window', () => {
+  const rules = Subs.groupRules([PEPPERS]);
+  assert.deepEqual(Subs.substitutesFor(rules, { customerId: 'K', substitutionPolicy: 'CustomerOnly' }, 'BELL', ASOF), []);
+  assert.deepEqual(Subs.substitutesFor(rules, { customerId: 'N', substitutionPolicy: 'Never' }, 'BELL', ASOF), []);
+  assert.deepEqual(Subs.substitutesFor(Subs.groupRules([{ ...PEPPERS, validFrom: '2026-12-15' }]), std, 'BELL', ASOF), []);
+});
+
+test('autoSubstitute: a customer with no rules of their own is filled from the group', () => {
+  const r = Subs.autoSubstitute({
+    shortLines: [{ salesId: 'S1', lineNum: 1, itemId: 'BELL', customerId: 'X', shortfall: 100 }],
+    customers: [std], rules: Subs.withGroups([], [PEPPERS]), pools: { '3CT': 40, TWST: 500 }, asOf: ASOF,
+  });
+  assert.deepEqual(r.staged.map(s => [s.toItemId, s.qty, s.scope, s.ruleId]), [['3CT', 40, 'Group', 'GRP-PEP'], ['TWST', 43, 'Group', 'GRP-PEP']]); // 40 × 3ct covers 53.5; 46.5 × 11/12 → 43
+  assert.ok(Math.abs(r.coveredQty - 100) < 1e-9);
+});
+
+test('validateGroup and applyGroupChanges', () => {
+  const items = [{ itemId: '3CT', commodityId: 'PEP' }, { itemId: 'TWST', commodityId: 'PEP' }, { itemId: 'BELL', commodityId: 'PEP' }, { itemId: 'BEEF', commodityId: 'TOM' }];
+  assert.deepEqual(Subs.validateGroup(PEPPERS, items), []);
+  assert.ok(Subs.validateGroup({ ...PEPPERS, members: PEPPERS.members.slice(0, 1) }, items).length);
+  assert.ok(Subs.validateGroup({ ...PEPPERS, members: [...PEPPERS.members, { itemId: 'BEEF', equivQty: 15 }] }, items).length);
+  assert.ok(Subs.validateGroup({ ...PEPPERS, members: [{ itemId: 'BELL', equivQty: 0 }, { itemId: 'TWST', equivQty: 12 }] }, items).length);
+  const out = Subs.applyGroupChanges([PEPPERS], [{ action: 'Upsert', group: { ...PEPPERS, name: 'Peppers' } }, { action: 'Upsert', group: { groupId: 'G2', name: 'New', members: [] } }]);
+  assert.deepEqual(out.map(g => g.name), ['Peppers', 'New']);
+  assert.deepEqual(Subs.applyGroupChanges(out, [{ action: 'Delete', group: { groupId: 'G2' } }]).map(g => g.groupId), ['GRP-PEP']);
+});
+
+test('buildRuleMessage carries SubstitutionGroups; normalizeSnapshot reads them back in Sequence order', () => {
+  const c = JSON.parse(buildRuleMessage({ groups: [{ action: 'Upsert', group: { ...PEPPERS, priceBasis: 'Substitute' } }] }, 'MPL', 'b-2')._messageContent);
+  assert.equal(c.SubstitutionGroups[0].GroupId, 'GRP-PEP');
+  assert.equal(c.SubstitutionGroups[0].PriceBasis, 'SubstituteItemPrice');
+  assert.deepEqual(c.SubstitutionGroups[0].Members.map(m => [m.ItemId, m.Sequence]), [['3CT', 1], ['TWST', 2], ['BELL', 3]]);
+  const snap = normalizeSnapshot({ substitutionGroups: [{ ...c.SubstitutionGroups[0], Members: c.SubstitutionGroups[0].Members.slice().reverse() }] });
+  assert.deepEqual(snap.substitutionGroups[0].members.map(m => m.itemId), ['3CT', 'TWST', 'BELL']);
+  assert.equal(snap.substitutionGroups[0].priceBasis, 'Substitute');
+});
+
+test('cleanRulePublish validates group changes', () => {
+  const snap = { items: [{ itemId: 'A', commodityId: 'P' }, { itemId: 'B', commodityId: 'P' }], customers: [] };
+  const g = { groupId: 'G1', name: 'AB', members: [{ itemId: 'A', equivQty: 1 }, { itemId: 'B', equivQty: 2 }] };
+  assert.equal(core.cleanRulePublish({ groups: [{ action: 'Upsert', group: g }] }, snap).groups.length, 1);
+  assert.throws(() => core.cleanRulePublish({ groups: [{ action: 'Upsert', group: { ...g, members: g.members.slice(0, 1) } }] }, snap), /at least two/);
+  assert.throws(() => core.cleanRulePublish({ groups: [{ action: 'Upsert', group: { ...g, groupId: '' } }] }, snap), /groupId/);
+});

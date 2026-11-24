@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxTable xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+  <Name>RSMItemSubstitutionGroupMember</Name>
+  <SourceCode>
+    <Declaration><![CDATA[
+/// <summary>
+/// One item in an interchangeable group (RSMItemSubstitutionGroup). EquivQty
+/// is how much one case of the item is worth in the group's unit; Sequence is
+/// the preference order when the item is offered as a substitute (1 first).
+/// </summary>
+public class RSMItemSubstitutionGroupMember extends common
+{
+}
+]]></Declaration>
+    <Methods>
+      <Method>
+        <Name>validateWrite</Name>
+        <Source><![CDATA[
+public boolean validateWrite()
+{
+    boolean ok = super();
+    if (ok && this.EquivQty <= 0)
+    {
+        ok = checkFailed("Equivalent quantity must be greater than 0.");
+    }
+    return ok;
+}
+]]></Source>
+      </Method>
+    </Methods>
+  </SourceCode>
+  <Label>Interchangeable group items</Label>
+  <DeveloperDocumentation>RSM Sales Proration: items in an interchangeable group, with equivalent quantity and preference order.</DeveloperDocumentation>
+  <TableGroup>Group</TableGroup>
+  <CreatedDateTime>Yes</CreatedDateTime>
+  <ModifiedDateTime>Yes</ModifiedDateTime>
+  <Tags>RSM_SalesProration</Tags>
+  <DeleteActions />
+  <FieldGroups>
+    <AxTableFieldGroup>
+      <Name>Overview</Name>
+      <Label>Overview</Label>
+      <Fields>
+        <AxTableFieldGroupField><DataField>Sequence</DataField></AxTableFieldGroupField>
+        <AxTableFieldGroupField><DataField>ItemId</DataField></AxTableFieldGroupField>
+        <AxTableFieldGroupField><DataField>EquivQty</DataField></AxTableFieldGroupField>
+      </Fields>
+    </AxTableFieldGroup>
+  </FieldGroups>
+  <Fields>
+    <AxTableField xmlns="" i:type="AxTableFieldString">
+      <Name>GroupId</Name>
+      <ExtendedDataType>Num</ExtendedDataType>
+      <Label>Group</Label>
+      <Mandatory>Yes</Mandatory>
+    </AxTableField>
+    <AxTableField xmlns="" i:type="AxTableFieldString">
+      <Name>ItemId</Name>
+      <ExtendedDataType>ItemId</ExtendedDataType>
+      <Mandatory>Yes</Mandatory>
+    </AxTableField>
+    <AxTableField xmlns="" i:type="AxTableFieldReal">
+      <Name>EquivQty</Name>
+      <ExtendedDataType>Qty</ExtendedDataType>
+      <Label>Equivalent qty per case</Label>
+      <HelpText>One case of this item in the group's unit, e.g. 11 for an 11 lb carton.</HelpText>
+    </AxTableField>
+    <AxTableField xmlns="" i:type="AxTableFieldInt">
+      <Name>Sequence</Name>
+      <ExtendedDataType>RSMSubstitutionRank</ExtendedDataType>
+      <Label>Preference</Label>
+    </AxTableField>
+  </Fields>
+  <FullTextIndexes />
+  <Indexes>
+    <AxTableIndex>
+      <Name>GroupItemIdx</Name>
+      <AllowDuplicates>No</AllowDuplicates>
+      <Fields>
+        <AxTableIndexField><DataField>GroupId</DataField></AxTableIndexField>
+        <AxTableIndexField><DataField>ItemId</DataField></AxTableIndexField>
+      </Fields>
+    </AxTableIndex>
+    <AxTableIndex>
+      <Name>ItemIdx</Name>
+      <AllowDuplicates>Yes</AllowDuplicates>
+      <Fields>
+        <AxTableIndexField><DataField>ItemId</DataField></AxTableIndexField>
+        <AxTableIndexField><DataField>Sequence</DataField></AxTableIndexField>
+      </Fields>
+    </AxTableIndex>
+  </Indexes>
+  <Mappings />
+  <Relations>
+    <AxTableRelation>
+      <Name>RSMItemSubstitutionGroup</Name>
+      <RelatedTable>RSMItemSubstitutionGroup</RelatedTable>
+      <Cardinality>ZeroMore</Cardinality>
+      <RelatedTableCardinality>ExactlyOne</RelatedTableCardinality>
+      <RelationshipType>Composition</RelationshipType>
+      <Constraints>
+        <AxTableRelationConstraint xmlns="" i:type="AxTableRelationConstraintField">
+          <Name>GroupId</Name>
+          <Field>GroupId</Field>
+          <RelatedField>GroupId</RelatedField>
+        </AxTableRelationConstraint>
+      </Constraints>
+    </AxTableRelation>
+    <AxTableRelation>
+      <Name>InventTable</Name>
+      <RelatedTable>InventTable</RelatedTable>
+      <Constraints>
+        <AxTableRelationConstraint xmlns="" i:type="AxTableRelationConstraintField">
+          <Name>ItemId</Name>
+          <Field>ItemId</Field>
+          <RelatedField>ItemId</RelatedField>
+        </AxTableRelationConstraint>
+      </Constraints>
+    </AxTableRelation>
+  </Relations>
+</AxTable>

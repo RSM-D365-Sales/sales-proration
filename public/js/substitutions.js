@@ -15,8 +15,8 @@
 const SUB_DRAFT_KEY = 'spa.subDrafts';
 const POLICY_LABEL = { Standard: 'Standard', CustomerOnly: 'Customer rules only', Never: 'Never substitute' };
 const POLICY_HELP = {
-  Standard: 'All-customer rules plus this customer’s own',
-  CustomerOnly: 'Only rules that name this customer',
+  Standard: 'Own rules, then all-customer rules, then groups',
+  CustomerOnly: 'Only rules that name this customer; groups don’t apply',
   Never: 'Line stays short; no substitute is offered',
 };
 
@@ -33,15 +33,15 @@ function ratioLabel(r) { return '×' + (Math.round(r * 1000) / 1000).toString();
 function loadSubDrafts() {
   try {
     const d = JSON.parse(localStorage.getItem(SUB_DRAFT_KEY) || 'null');
-    if (d && Array.isArray(d.rules) && Array.isArray(d.policies)) return d;
+    if (d && Array.isArray(d.rules) && Array.isArray(d.policies)) return { ...d, groups: Array.isArray(d.groups) ? d.groups : [] };
   } catch { /* fall through */ }
-  return { rules: [], policies: [] };
+  return { rules: [], policies: [], groups: [] };
 }
 function saveSubDrafts(d) {
   try { localStorage.setItem(SUB_DRAFT_KEY, JSON.stringify(d)); } catch { /* private mode — drafts live for the page only */ }
 }
 function clearSubDrafts() { try { localStorage.removeItem(SUB_DRAFT_KEY); } catch { /* ignore */ } }
-function subDraftCount(d = loadSubDrafts()) { return d.rules.length + d.policies.length; }
+function subDraftCount(d = loadSubDrafts()) { return d.rules.length + d.policies.length + d.groups.length; }
 
 /** Stage a rule upsert/delete. A delete of a rule that only exists as a draft just drops the draft. */
 function draftRuleChange(action, rule, serverRules) {
@@ -52,6 +52,19 @@ function draftRuleChange(action, rule, serverRules) {
   const clean = { ...rule };
   delete clean.status; delete clean.pending;
   d.rules.push({ action, rule: clean });
+  saveSubDrafts(d);
+  return d;
+}
+
+/** Stage an interchangeable group upsert/delete (same draft rules as a rule change). */
+function draftGroupChange(action, group, serverGroups) {
+  const d = loadSubDrafts();
+  const existsOnServer = (serverGroups || []).some(g => g.groupId === group.groupId);
+  d.groups = d.groups.filter(ch => ch.group.groupId !== group.groupId);
+  if (action === 'Delete' && !existsOnServer) { saveSubDrafts(d); return d; }
+  const clean = { ...group, members: (group.members || []).map(m => ({ itemId: m.itemId, equivQty: Number(m.equivQty) })) };
+  delete clean.status; delete clean.pending;
+  d.groups.push({ action, group: clean });
   saveSubDrafts(d);
   return d;
 }
@@ -78,6 +91,21 @@ function effectiveCustomers(serverCustomers, d = loadSubDrafts()) {
   return Subs.applyPolicyChanges(serverCustomers, d.policies).map(c => ({ ...c, policyPending: pendingIds.has(c.customerId) }));
 }
 
+/** Server groups with drafts applied; drafted groups carry pending: true. */
+function effectiveGroups(serverGroups, d = loadSubDrafts()) {
+  const pendingIds = new Set(d.groups.filter(ch => ch.action === 'Upsert').map(ch => ch.group.groupId));
+  return Subs.applyGroupChanges(serverGroups, d.groups).map(g => ({ ...g, pending: pendingIds.has(g.groupId) }));
+}
+
+/** What the planner plans with: explicit rules, then the virtual rules interchangeable groups expand to. */
+function planningRules(serverRules, serverGroups, d = loadSubDrafts()) {
+  return Subs.withGroups(effectiveRules(serverRules, d), effectiveGroups(serverGroups, d));
+}
+
+function newGroupId() {
+  return 'GRP-N' + Date.now().toString(36).toUpperCase().slice(-5) + Math.floor(Math.random() * 36).toString(36).toUpperCase();
+}
+
 function newRuleId() {
   return 'SUB-N' + Date.now().toString(36).toUpperCase().slice(-5) + Math.floor(Math.random() * 36).toString(36).toUpperCase();
 }
@@ -101,8 +129,10 @@ function policyChip(c) {
 }
 
 function scopeChip(rule, scope) {
-  if (rule?.pending) return `<span class="chip AtRisk" title="Approved here; goes to D365 with your next publish">pending rule</span>`;
+  const isGroup = scope === 'Group' || !!rule?.groupId;
+  if (rule?.pending) return `<span class="chip AtRisk" title="Approved here; goes to D365 with your next publish">pending ${isGroup ? 'group' : 'rule'}</span>`;
   if (!rule) return `<span class="chip plain">no rule</span>`;
+  if (isGroup) return `<span class="chip group" title="Interchangeable group${rule.groupName ? ': ' + esc(rule.groupName) : ''}">${esc(rule.groupName || 'interchangeable')}</span>`;
   return scope === 'Customer' || rule.customerId
     ? `<span class="chip OK">customer rule</span>`
     : `<span class="chip plain">all customers</span>`;
@@ -216,26 +246,32 @@ async function renderSubstitutions() {
 function subsState() {
   const d = loadSubDrafts();
   const rules = effectiveRules(BOOK.rules, d).map(r => ({ ...r, status: Subs.ruleStatus(r, BOOK.asOf) }));
+  const groups = effectiveGroups(BOOK.groups || [], d).map(g => ({ ...g, status: Subs.ruleStatus(g, BOOK.asOf) }));
+  const planning = Subs.withGroups(rules, groups);
   const customers = effectiveCustomers(BOOK.customers, d);
   const items = BOOK.items;
   const itemById = Object.fromEntries(items.map(i => [i.itemId, i]));
   const custById = Object.fromEntries(customers.map(c => [c.customerId, c]));
-  return { d, rules, customers, items, itemById, custById };
+  return { d, rules, groups, planning, customers, items, itemById, custById };
 }
 
 function paintSubstitutions() {
   const st = subsState();
   const live = st.rules.filter(r => r.status === 'Active');
+  const liveGroups = st.groups.filter(g => g.status === 'Active');
+  const covered = new Set([...live.map(r => r.fromItemId), ...live.filter(r => r.direction === 'Bidirectional').map(r => r.toItemId),
+    ...liveGroups.flatMap(g => g.members.map(m => m.itemId))]);
   const restricted = st.customers.filter(c => c.substitutionPolicy !== 'Standard');
   const pending = subDraftCount(st.d);
   document.getElementById('kpis').innerHTML = `
     ${kpi('Active rules', live.length, `${live.filter(r => r.customerId).length} customer-specific · ${live.filter(r => !r.customerId).length} all customers`)}
-    ${kpi('Items covered', new Set(live.map(r => r.fromItemId)).size, `of ${st.items.length} items have a substitute`)}
+    ${kpi('Interchangeable groups', liveGroups.length, `${covered.size} of ${st.items.length} items have a substitute`)}
     ${kpi('Restricted customers', restricted.length, `${restricted.filter(c => c.substitutionPolicy === 'Never').length} never · ${restricted.filter(c => c.substitutionPolicy === 'CustomerOnly').length} customer rules only`)}
     ${kpi('Pending changes', pending, pending ? 'not yet in D365' : 'D365 is up to date', true)}
   `;
   paintPendingBar(st);
   paintCustomerView(st);
+  paintGroups(st);
   paintRuleTable(st);
   paintPolicyTable(st);
 }
@@ -249,7 +285,7 @@ function paintPendingBar(st) {
     <div class="pending-bar">
       <div>
         <strong>${n} change${n === 1 ? '' : 's'} not yet in D365</strong>
-        <span class="muted">· ${st.d.rules.length} rule${st.d.rules.length === 1 ? '' : 's'} · ${st.d.policies.length} customer polic${st.d.policies.length === 1 ? 'y' : 'ies'}. The planner already uses them.</span>
+        <span class="muted">· ${st.d.rules.length} rule${st.d.rules.length === 1 ? '' : 's'} · ${st.d.groups.length} group${st.d.groups.length === 1 ? '' : 's'} · ${st.d.policies.length} customer polic${st.d.policies.length === 1 ? 'y' : 'ies'}. The planner already uses them.</span>
       </div>
       <span class="spacer"></span>
       <button class="ghost" id="subs-discard">Discard</button>
@@ -270,7 +306,7 @@ function paintCustomerView(st) {
   const shown = st.items.filter(i => SUBS_VIEW.allItems || openItems.has(i.itemId) || ruleItems.has(i.itemId));
 
   const rowsHtml = shown.map(it => {
-    const cands = Subs.substitutesFor(st.rules, c, it.itemId, BOOK.asOf);
+    const cands = Subs.substitutesFor(st.planning, c, it.itemId, BOOK.asOf);
     const chain = c.substitutionPolicy === 'Never'
       ? `<span class="muted">Never substitutes</span>`
       : cands.length ? `<ol class="chain">${cands.map(k => {
@@ -279,7 +315,7 @@ function paintCustomerView(st) {
           return `<li>
             <span class="chain__item">${esc(to?.name || k.toItemId)}</span>
             ${scopeChip(k.rule, k.scope)}
-            <span class="muted">${ratioLabel(k.ratio)}${k.reversed ? ' (reverse of a two-way rule)' : ''} · ${esc(basisLabel(k.rule.priceBasis))} · margin ${marginCell(e)}</span>
+            <span class="muted">${ratioLabel(k.ratio)}${k.reversed ? ' (reverse of a two-way rule)' : ''}${k.scope === 'Group' ? ' (group default)' : ''} · ${esc(basisLabel(k.rule.priceBasis))} · margin ${marginCell(e)}</span>
           </li>`;
         }).join('')}</ol>`
       : `<span class="muted">${c.substitutionPolicy === 'CustomerOnly' ? 'No rule names this customer for this item' : 'No substitute — line stays short'}</span>`;
@@ -336,8 +372,6 @@ function paintRuleTable(st) {
       || a.fromItemId.localeCompare(b.fromItemId) || (a.customerId ? 0 : 1) - (b.customerId ? 0 : 1) || a.rank - b.rank);
 
   const deleted = new Set(st.d.rules.filter(ch => ch.action === 'Delete').map(ch => ch.rule.ruleId));
-  const statusChip = s => s === 'Active' ? '<span class="chip OK">Active</span>'
-    : s === 'Scheduled' ? '<span class="chip AtRisk">Scheduled</span>' : '<span class="chip plain">Expired</span>';
   const validity = r => (r.validFrom || r.validTo) ? `${esc(r.validFrom || '…')} → ${esc(r.validTo || '…')}` : '<span class="muted">—</span>';
 
   document.getElementById('sr-count').textContent = `${rows.length} of ${st.rules.length} rules`;
@@ -362,6 +396,196 @@ function paintRuleTable(st) {
 
   const delNote = document.getElementById('sr-deleted');
   delNote.textContent = deleted.size ? `${deleted.size} rule(s) marked for removal on publish.` : '';
+}
+
+// ---- Interchangeable groups -------------------------------------------------------
+
+const statusChip = s => s === 'Active' ? '<span class="chip OK">Active</span>'
+  : s === 'Scheduled' ? '<span class="chip AtRisk">Scheduled</span>' : '<span class="chip plain">Expired</span>';
+
+/** Ordered × substitute grid: cases of the substitute per ordered case, and margin vs the ordered item. */
+function groupMatrix(g, itemById) {
+  const ms = g.members.filter(m => itemById[m.itemId]);
+  const head = ms.map(m => `<th class="num" title="${esc(m.itemId)}">${esc(itemById[m.itemId].name)}</th>`).join('');
+  const rows = ms.map(from => `
+    <tr>
+      <th scope="row" title="${esc(from.itemId)}">${esc(itemById[from.itemId].name)}</th>
+      ${ms.map(to => {
+        if (to.itemId === from.itemId) return '<td class="num muted">—</td>';
+        const ratio = Subs.groupRatio(from, to);
+        const e = Subs.subEconomics({ fromItem: itemById[from.itemId], toItem: itemById[to.itemId], qty: ratio, ratio, priceBasis: g.priceBasis });
+        return `<td class="num nowrap">${ratioLabel(ratio)}<div class="small">${marginCell(e)}</div></td>`;
+      }).join('')}
+    </tr>`).join('');
+  return `
+    <table class="grid group-matrix">
+      <thead><tr><th>Ordered ↓ · substitute →</th>${head}</tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function paintGroups(st) {
+  const wrap = document.getElementById('subs-groups');
+  if (!wrap) return;
+  const commodityName = Object.fromEntries(BOOK.commodities.map(c => [c.id, c.name]));
+  const deleted = st.d.groups.filter(ch => ch.action === 'Delete').length;
+  const cards = st.groups.slice()
+    .sort((a, b) => String(st.itemById[a.members[0]?.itemId]?.commodityId).localeCompare(String(st.itemById[b.members[0]?.itemId]?.commodityId)) || a.name.localeCompare(b.name))
+    .map(g => {
+      const grp = st.itemById[g.members[0]?.itemId]?.commodityId;
+      const validity = (g.validFrom || g.validTo) ? ` · ${esc(g.validFrom || '…')} → ${esc(g.validTo || '…')}` : '';
+      return `
+        <article class="group-card ${g.pending ? 'is-pending' : ''}">
+          <header>
+            <div>
+              <h3>${esc(g.name)} ${statusChip(g.status)} ${g.pending ? '<span class="chip AtRisk">pending</span>' : ''}</h3>
+              <div class="meta"><code>${esc(g.groupId)}</code> · ${esc(commodityName[grp] || grp || '')} · bill at ${esc(basisLabel(g.priceBasis).toLowerCase())}${validity}</div>
+              ${g.note ? `<div class="muted small">${esc(g.note)}</div>` : ''}
+            </div>
+            <div class="item-card__actions">
+              <button class="ghost" data-edit-group="${esc(g.groupId)}">Edit</button>
+              <button class="ghost" data-del-group="${esc(g.groupId)}">Remove</button>
+            </div>
+          </header>
+          <ol class="group-members">
+            ${g.members.map(m => {
+              const it = st.itemById[m.itemId];
+              return `<li><span class="chain__item">${esc(it?.name || m.itemId)}</span> <span class="muted">${esc(it?.pack || '')}</span> <span class="chip plain">1 case = ${esc(String(m.equivQty))} ${esc(g.unit || '')}</span></li>`;
+            }).join('')}
+          </ol>
+          ${groupMatrix(g, st.itemById)}
+        </article>`;
+    }).join('');
+  wrap.innerHTML = (cards || '<p class="muted">No interchangeable groups yet. Without one, a customer with no rules of their own has no substitute.</p>')
+    + (deleted ? `<p class="muted">${deleted} group(s) marked for removal on publish.</p>` : '');
+}
+
+/** New / edit group form: pick members from one buyer group, set each one's equivalent quantity and order. */
+function openGroupEditor(group) {
+  const st = subsState();
+  const isNew = !group.groupId;
+  const g = { name: '', unit: 'lb', priceBasis: 'Original', validFrom: '', validTo: '', note: '', members: [], ...group };
+  let commodityId = st.itemById[g.members[0]?.itemId]?.commodityId || g.commodityId || BOOK.commodities[0]?.id;
+  // Working member list: chosen members first (in order), then the rest of the buyer group unticked.
+  const rowsFor = cid => {
+    const chosen = g.members.filter(m => st.itemById[m.itemId]?.commodityId === cid).map(m => ({ ...m, on: true }));
+    const rest = st.items.filter(i => i.commodityId === cid && !chosen.some(m => m.itemId === i.itemId))
+      .map(i => ({ itemId: i.itemId, equivQty: '', on: false }));
+    return [...chosen, ...rest];
+  };
+  let rows = rowsFor(commodityId);
+
+  const { overlay, close } = openOverlay(`
+    <h3>${isNew ? 'New interchangeable group' : `Edit group ${esc(g.groupId)}`}</h3>
+    <div class="overlay__sub">Every ticked item can replace any other, scaled by its equivalent quantity. Applies to every Standard-policy customer after their own rules and the all-customer rules. Saved as a pending change; goes to D365 (RSMItemSubstitutionGroup) when you publish.</div>
+    <form class="rule-form" id="group-form">
+      <label class="field span-2">Name
+        <input name="name" type="text" value="${esc(g.name)}" placeholder="e.g. Sweet peppers" required />
+      </label>
+      <label class="field">Buyer group
+        <select name="commodityId">${BOOK.commodities.map(c => `<option value="${esc(c.id)}" ${c.id === commodityId ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select>
+      </label>
+      <label class="field">Equivalence unit <span class="field__hint">what one case is measured in</span>
+        <input name="unit" type="text" value="${esc(g.unit)}" placeholder="lb, count, oz…" />
+      </label>
+      <div class="span-2">
+        <table class="grid group-edit">
+          <thead><tr><th></th><th>Item</th><th class="num">1 case =</th><th class="num">Preference</th></tr></thead>
+          <tbody id="group-rows"></tbody>
+        </table>
+      </div>
+      <label class="field">Bill at
+        <select name="priceBasis">
+          <option value="Original" ${g.priceBasis !== 'Substitute' ? 'selected' : ''}>Ordered item price</option>
+          <option value="Substitute" ${g.priceBasis === 'Substitute' ? 'selected' : ''}>Substitute price</option>
+        </select>
+      </label>
+      <span></span>
+      <label class="field">Valid from
+        <input name="validFrom" type="date" value="${esc(g.validFrom)}" />
+      </label>
+      <label class="field">Valid to
+        <input name="validTo" type="date" value="${esc(g.validTo)}" />
+      </label>
+      <label class="field span-2">Note
+        <input name="note" type="text" value="${esc(g.note)}" placeholder="Why these items are interchangeable" />
+      </label>
+      <div class="span-2" id="group-preview"></div>
+      <div class="span-2 notice bad hidden" id="group-errors"></div>
+      <div class="span-2 row" style="justify-content:flex-end;margin:0">
+        <button type="button" data-close>Cancel</button>
+        <button type="submit" class="primary">${isNew ? 'Add group' : 'Save changes'}</button>
+      </div>
+    </form>`, { wide: true });
+
+  const form = overlay.querySelector('#group-form');
+  const unit = () => form.elements.unit.value.trim();
+  const paintRows = () => {
+    overlay.querySelector('#group-rows').innerHTML = rows.map((m, i) => {
+      const it = st.itemById[m.itemId];
+      return `
+        <tr class="${m.on ? '' : 'is-off'}">
+          <td><input type="checkbox" data-on="${i}" ${m.on ? 'checked' : ''} aria-label="Include ${esc(it?.name || m.itemId)}" /></td>
+          <td><strong>${esc(it?.name || m.itemId)}</strong><div class="muted small">${esc(m.itemId)}${it?.pack ? ' · ' + esc(it.pack) : ''}</div></td>
+          <td class="num nowrap"><input class="compact equiv-input" type="number" min="0.01" step="0.01" value="${esc(m.equivQty)}" data-equiv="${i}" ${m.on ? '' : 'disabled'} /> <span class="muted">${esc(unit())}</span></td>
+          <td class="num nowrap">${m.on ? `<button type="button" class="ghost" data-up="${i}" ${i === 0 ? 'disabled' : ''} aria-label="Move up">↑</button><button type="button" class="ghost" data-down="${i}" ${i === rows.length - 1 ? 'disabled' : ''} aria-label="Move down">↓</button>` : ''}</td>
+        </tr>`;
+    }).join('');
+  };
+  const read = () => {
+    const f = new FormData(form);
+    return {
+      ...g,
+      groupId: g.groupId || newGroupId(),
+      name: String(f.get('name') || '').trim(),
+      unit: unit(),
+      priceBasis: f.get('priceBasis'),
+      validFrom: f.get('validFrom') || '', validTo: f.get('validTo') || '',
+      note: String(f.get('note') || '').trim(),
+      members: rows.filter(m => m.on).map(m => ({ itemId: m.itemId, equivQty: Number(m.equivQty) })),
+    };
+  };
+  const paintPreview = () => {
+    const x = read();
+    const ok = x.members.length >= 2 && x.members.every(m => m.equivQty > 0);
+    overlay.querySelector('#group-preview').innerHTML = ok
+      ? `<div class="muted small" style="margin-bottom:.35rem">Substitute cases per ordered case, and margin at list against the ordered item:</div>${groupMatrix(x, st.itemById)}`
+      : '<p class="muted small">Tick at least two items and give each an equivalent quantity to preview the ratios.</p>';
+  };
+  // Rows stay where they are when ticked (no jumping under the pointer); the
+  // ticked rows, top to bottom, are the preference order.
+
+  overlay.addEventListener('click', e => {
+    const up = e.target.closest('[data-up]'), down = e.target.closest('[data-down]');
+    const i = Number((up || down)?.dataset.up ?? (up || down)?.dataset.down);
+    if (!up && !down) return;
+    const j = up ? i - 1 : i + 1;
+    [rows[i], rows[j]] = [rows[j], rows[i]];
+    paintRows(); paintPreview();
+  });
+  form.addEventListener('change', e => {
+    const t = e.target;
+    if (t.name === 'commodityId') { commodityId = t.value; g.members = []; rows = rowsFor(commodityId); paintRows(); }
+    if (t.dataset.on !== undefined) { rows[Number(t.dataset.on)].on = t.checked; paintRows(); }
+    if (t.name === 'unit') paintRows();
+    paintPreview();
+  });
+  form.addEventListener('input', e => {
+    if (e.target.dataset.equiv !== undefined) rows[Number(e.target.dataset.equiv)].equivQty = e.target.value;
+    paintPreview();
+  });
+  paintRows(); paintPreview();
+
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    const x = read();
+    const errs = Subs.validateGroup(x, st.items);
+    const box = overlay.querySelector('#group-errors');
+    if (errs.length) { box.innerHTML = errs.map(esc).join('<br>'); box.classList.remove('hidden'); return; }
+    draftGroupChange('Upsert', x, BOOK.groups || []);
+    close();
+    paintSubstitutions();
+  });
 }
 
 function paintPolicyTable(st) {
@@ -398,6 +622,7 @@ function wireSubstitutionsPage() {
       paintRuleTable(subsState());
     }));
   document.getElementById('sr-new').addEventListener('click', () => openRuleEditor({}));
+  document.getElementById('sg-new').addEventListener('click', () => openGroupEditor({}));
 
   const main = document.querySelector('main');
   main.addEventListener('click', async e => {
@@ -411,6 +636,16 @@ function wireSubstitutionsPage() {
       }
       return;
     }
+    const eg = e.target.closest('[data-edit-group]');
+    if (eg) { openGroupEditor(subsState().groups.find(g => g.groupId === eg.dataset.editGroup)); return; }
+    const dg = e.target.closest('[data-del-group]');
+    if (dg) {
+      const g = subsState().groups.find(x => x.groupId === dg.dataset.delGroup);
+      if (g && confirm(`Remove group “${g.name}”? Customers without their own rules lose these substitutes when you publish.`)) {
+        draftGroupChange('Delete', g, BOOK.groups || []); paintSubstitutions();
+      }
+      return;
+    }
     const nr = e.target.closest('[data-new-rule-from]');
     if (nr) { openRuleEditor({ fromItemId: nr.dataset.newRuleFrom, customerId: SUBS_VIEW.customerId }); return; }
     const row = e.target.closest('#policy-table tr[data-customer]');
@@ -420,7 +655,7 @@ function wireSubstitutionsPage() {
       return;
     }
     if (e.target.id === 'subs-discard') {
-      if (confirm('Discard every unpublished rule and policy change?')) { clearSubDrafts(); paintSubstitutions(); }
+      if (confirm('Discard every unpublished rule, group and policy change?')) { clearSubDrafts(); paintSubstitutions(); }
       return;
     }
     if (e.target.id === 'subs-publish') {

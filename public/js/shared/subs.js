@@ -15,6 +15,15 @@
 //   Standard      all-customer rules + their own; their own win ties
 //   CustomerOnly  only rules that name them (e.g. a menu-spec foodservice account)
 //   Never         nothing — the line stays short
+//
+// Interchangeable groups (RSMItemSubstitutionGroup) are the generic layer
+// under the rules: a set of items that can stand in for one another, each
+// with an equivalent quantity per case (e.g. lb). Any member covers any other
+// at ratio = equiv(ordered) / equiv(substitute). Groups apply to every
+// Standard-policy customer, after that customer's own rules and the explicit
+// all-customer rules — so a customer with no rules of their own still gets a
+// sensible substitute, and an explicit rule always wins for the same pair.
+// CustomerOnly and Never customers never get group substitutes.
 (function (root) {
 
 const EPS = 1e-9;
@@ -40,7 +49,7 @@ function substitutesFor(rules, customer, fromItemId, asOf) {
   const out = new Map(); // toItemId -> best candidate
   for (const r of rules || []) {
     if (ruleStatus(r, asOf) !== 'Active') continue;
-    const forCustomer = r.customerId && r.customerId === custId;
+    const forCustomer = !r.groupId && r.customerId && r.customerId === custId;
     const forAll = !r.customerId;
     if (!forCustomer && !(forAll && policy === 'Standard')) continue;
 
@@ -51,15 +60,17 @@ function substitutesFor(rules, customer, fromItemId, asOf) {
     }
     if (!toItemId || toItemId === fromItemId) continue;
 
-    const cand = { toItemId, ratio, rule: r, scope: forCustomer ? 'Customer' : 'All customers', reversed };
+    const scope = forCustomer ? 'Customer' : r.groupId ? 'Group' : 'All customers';
+    const cand = { toItemId, ratio, rule: r, scope, reversed };
     const prev = out.get(toItemId);
     if (!prev || better(cand, prev)) out.set(toItemId, cand);
   }
   return [...out.values()].sort((a, b) => (better(a, b) ? -1 : better(b, a) ? 1 : 0));
 }
 
+const SCOPE_ORDER = { Customer: 0, 'All customers': 1, Group: 2 };
 function better(a, b) {
-  const sa = a.scope === 'Customer' ? 0 : 1, sb = b.scope === 'Customer' ? 0 : 1;
+  const sa = SCOPE_ORDER[a.scope], sb = SCOPE_ORDER[b.scope];
   if (sa !== sb) return sa < sb;
   if (a.rule.rank !== b.rule.rank) return a.rule.rank < b.rule.rank;
   return a.reversed === false && b.reversed === true;
@@ -196,9 +207,78 @@ function validateRule(r, items) {
   return errs;
 }
 
+// ---- Interchangeable groups -------------------------------------------------------
+//
+// group: { groupId, name, unit, priceBasis, validFrom, validTo, note,
+//          members: [{ itemId, equivQty }] }   member order = preference
+
+/** Substitute cases per ordered case between two members of a group. */
+function groupRatio(fromMember, toMember) {
+  return (Number(fromMember.equivQty) || 1) / (Number(toMember.equivQty) || 1);
+}
+
+/**
+ * Expand groups into the virtual one-way rules the engine plans with: every
+ * member → every other member, ranked by the substitute's place in the group.
+ * Virtual rules carry groupId (ruleId = groupId) and never a customer.
+ */
+function groupRules(groups) {
+  const out = [];
+  for (const g of groups || []) {
+    const members = (g.members || []).filter(m => m && m.itemId && Number(m.equivQty) > 0);
+    members.forEach(from => members.forEach((to, rank) => {
+      if (from.itemId === to.itemId) return;
+      out.push({
+        ruleId: g.groupId, groupId: g.groupId, groupName: g.name,
+        fromItemId: from.itemId, toItemId: to.itemId, customerId: '',
+        direction: 'OneWay', rank: rank + 1, qtyRatio: groupRatio(from, to),
+        priceBasis: g.priceBasis || 'Original', validFrom: g.validFrom || '', validTo: g.validTo || '',
+        note: `${g.name}: 1 case = ${fmtQty(from.equivQty)} ${g.unit || ''} → ${fmtQty(to.equivQty)} ${g.unit || ''}`.replace(/\s+/g, ' ').trim(),
+        pending: !!g.pending,
+      });
+    }));
+  }
+  return out;
+}
+function fmtQty(n) { return String(Math.round(Number(n) * 100) / 100); }
+
+/** Explicit rules plus the virtual rules from groups: what the planner plans with. */
+function withGroups(rules, groups) {
+  return [...(rules || []), ...groupRules(groups)];
+}
+
+/** Apply draft group changes ([{ action: 'Upsert'|'Delete', group }]). */
+function applyGroupChanges(groups, changes) {
+  const out = (groups || []).map(g => ({ ...g, members: (g.members || []).map(m => ({ ...m })) }));
+  for (const ch of changes || []) {
+    const i = out.findIndex(g => g.groupId === ch.group.groupId);
+    if (ch.action === 'Delete') { if (i >= 0) out.splice(i, 1); continue; }
+    const g = { ...ch.group, members: (ch.group.members || []).map(m => ({ ...m })) };
+    if (i >= 0) out[i] = { ...out[i], ...g };
+    else out.push(g);
+  }
+  return out;
+}
+
+/** Shape checks for a group edited in the UI (D365 re-validates on write). */
+function validateGroup(g, items) {
+  const errs = [];
+  const byId = Object.fromEntries((items || []).map(i => [i.itemId, i]));
+  const members = g.members || [];
+  if (!String(g.name || '').trim()) errs.push('Give the group a name.');
+  if (members.length < 2) errs.push('A group needs at least two items.');
+  if (members.some(m => !byId[m.itemId])) errs.push('Every member must be a known item.');
+  if (new Set(members.map(m => m.itemId)).size !== members.length) errs.push('An item can only appear once in a group.');
+  if (new Set(members.map(m => byId[m.itemId]?.commodityId)).size > 1) errs.push('Every member must be in the same buyer group.');
+  if (members.some(m => !(Number(m.equivQty) > 0))) errs.push('Each item needs an equivalent quantity greater than 0.');
+  if (g.validFrom && g.validTo && g.validTo < g.validFrom) errs.push('Valid to is before valid from.');
+  return errs;
+}
+
 const api = {
   ruleStatus, substitutesFor, resolveRule, subEconomics, autoSubstitute,
   applyRuleChanges, applyPolicyChanges, validateRule,
+  groupRatio, groupRules, withGroups, applyGroupChanges, validateGroup,
 };
 if (typeof module === 'object' && module.exports) module.exports = api;
 else root.Subs = api;

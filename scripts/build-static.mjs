@@ -135,7 +135,7 @@ const stray = files.filter(f => /bluestem|msal/i.test(relative(out, f)))
 
 console.log(`\nStatic build · scenario ${key} → ${relative(root, out)}/`)
 console.log(`  snapshot as of ${raw.asOf}${cfg.rebaseDates ? ' (re-anchored to the viewer\'s today at load)' : ''} · company ${cfg.company}`)
-console.log(`  ${rows.length} buyer groups · ${snap.items.length} items · ${snap.customers.length} customers · ${snap.demand.length} lines · ${snap.substitutions.length} rules`)
+console.log(`  ${rows.length} buyer groups · ${snap.items.length} items · ${snap.customers.length} customers · ${snap.demand.length} lines · ${snap.substitutions.length} rules · ${snap.substitutionGroups.length} interchangeable groups`)
 console.log(`  demand ${td.toLocaleString()} · supply ${ts.toLocaleString()} · fill ${((ts / td) * 100).toFixed(1)}% · ${rows.map(r => `${r.name} ${r.status}`).join(' · ')}`)
 console.log(`  tie-out: demand lines ${lineSum.toLocaleString()} ${lineSum === td ? '= buyer-group demand ✓' : '≠ buyer-group demand ✗'}`)
 console.log(`  ${pages.length} pages · ${files.length} files · ${(bytes / 1024).toFixed(0)} KB${stray.length ? ` · ✗ stray files: ${stray.map(f => relative(out, f)).join(', ')}` : ' · no other-scenario assets ✓'}`)

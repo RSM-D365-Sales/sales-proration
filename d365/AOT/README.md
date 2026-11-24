@@ -9,6 +9,8 @@ into the model's metadata folders and fix up any boilerplate VS expects.
 |---|---|---|
 | `RSMSubstitutionDirection` | Enum | One way (From → To) vs Bidirectional |
 | `RSMSubstitutionRank` | EDT (int) | Preference order, 1 first |
+| `RSMItemSubstitutionGroup` | Table | Interchangeable group: name, equivalence unit, price basis, validity. The default substitutes for every Standard-policy customer, used after explicit rules. `match()` returns the group, ratio and price basis for an (ordered, substitute) pair. Deleting a group cascades to its members. |
+| `RSMItemSubstitutionGroupMember` | Table | Group item: equivalent qty per case and preference sequence. Unique on (Group, Item). |
 | `RSMSubstitutionPriceBasis` | Enum | Bill the substitute at the ordered item's price or its own |
 | `RSMSubstitutionPolicy` | Enum | Customer policy: Standard / Customer rules only / Never substitute |
 | `CustTable.RSM_SalesProration` | Table extension | `RSMSubstitutionPolicy` + `RSMSubstitutionNote` on the customer |

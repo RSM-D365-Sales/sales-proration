@@ -7,8 +7,9 @@
  *
  * Writes (git-tracked; regenerate, never hand-edit):
  *   scenarios/sunset/data/snapshot.json  raw GetOpenSalesOrders shape, plus the
- *                                        substitution rules and customer
- *                                        policies a rules-aware feed carries
+ *                                        substitution rules, interchangeable
+ *                                        groups and customer policies a
+ *                                        rules-aware feed carries
  *   scenarios/sunset/data/outbox.json    recent batches for the landing page
  *
  * The twelve SUNSET products, packs, case list prices and case costs match the
@@ -139,24 +140,44 @@ const COMMODITIES = [
 // ---------------------------------------------------------------------------
 // Substitution rules (RSMItemSubstitution). CustAccount blank = all customers.
 // QtyRatio = substitute cases per ordered case (pack weight / count based).
+// The like-for-like swaps (bell ↔ 3ct ↔ Twister, beefsteak ↔ Romana, 10 oz ↔
+// 1 lb …) come from the interchangeable groups below; rules are only the
+// exceptions: a customer's own preference or price, a cross-group upgrade,
+// and the dated programs.
 // ---------------------------------------------------------------------------
 const R = (o) => ({ Direction: 'OneWay', Rank: 1, QtyRatio: 1, PriceBasis: 'Original', CustAccount: '', ValidFrom: '', ValidTo: '', ...o })
 const SUBSTITUTIONS = [
   // Peppers — the hero beats
-  R({ RuleId: 'SUB-1001', FromItemId: 'SG-PEP-BELL', ToItemId: 'SG-PEP-BELL-3CT', QtyRatio: 0.75, Note: '22 peppers per carton ≈ 0.75 case of 12 × 3 ct' }),
   R({ RuleId: 'SUB-1002', FromItemId: 'SG-PEP-BELL', ToItemId: 'SG-PEP-TWST-2LB', CustAccount: 'C10001', Note: 'Great Lakes merchandising prefers Sweet Twister on bell shortfalls' }),
-  R({ RuleId: 'SUB-1003', FromItemId: 'SG-PEP-TWST-2LB', ToItemId: 'SG-PEP-BELL-3CT', Rank: 2 }),
   // Tomatoes
-  R({ RuleId: 'SUB-2001', FromItemId: 'SG-TOM-BEEF', ToItemId: 'SG-TOM-ROM-3LB', QtyRatio: 0.625, Note: '15 lb carton = 0.625 case of 8 × 3 lb' }),
-  R({ RuleId: 'SUB-2002', FromItemId: 'SG-TOM-WW-2LB', ToItemId: 'SG-TOM-ANGEL', Direction: 'Bidirectional', QtyRatio: 1.6, PriceBasis: 'Substitute' }),
   R({ RuleId: 'SUB-2003', FromItemId: 'SG-TOM-ROM-3LB', ToItemId: 'SG-TOM-BEEF', QtyRatio: 1.6, ValidFrom: isoDay(-75), ValidTo: isoDay(-20), Note: 'Fall changeover program (ended)' }),
   // Cucumbers
   R({ RuleId: 'SUB-3001', FromItemId: 'SG-CUC-MINI', ToItemId: 'SG-CUC-MINI-ORG', Note: 'Organic upgrade at the conventional price' }),
   R({ RuleId: 'SUB-3002', FromItemId: 'SG-CUC-MINI-ORG', ToItemId: 'SG-CUC-ORG-6CT', CustAccount: 'C10009', QtyRatio: 1, Note: 'Organic-for-organic only' }),
   R({ RuleId: 'SUB-3003', FromItemId: 'SG-CUC-ORG-6CT', ToItemId: 'SG-CUC-MINI-ORG', Rank: 2, ValidFrom: isoDay(10), Note: 'Starts with the winter 6ct reset' }),
   // Berries
-  R({ RuleId: 'SUB-4001', FromItemId: 'SG-BER-WOW-10OZ', ToItemId: 'SG-BER-WOW-1LB', QtyRatio: 0.625, Note: '8 × 10 oz = 0.625 case of 8 × 1 lb' }),
   R({ RuleId: 'SUB-4002', FromItemId: 'SG-BER-WOW-10OZ', ToItemId: 'SG-BER-WOW-1LB', CustAccount: 'C10002', QtyRatio: 0.625, PriceBasis: 'Substitute', Note: 'Northwind pays the 1 lb price on trade-up' }),
+]
+
+// ---------------------------------------------------------------------------
+// Interchangeable groups (RSMItemSubstitutionGroup): the default for every
+// Standard customer whose own rules don't cover an item. EquivQty = pounds
+// per case; ratio between members = equiv(ordered) / equiv(substitute).
+// Members are listed in preference order. Shishito is deliberately left out
+// (hot, not sweet) and conventional and organic cucumbers never mix.
+// ---------------------------------------------------------------------------
+const G = (o) => ({ PriceBasis: 'OriginalItemPrice', Unit: 'lb', ValidFrom: '', ValidTo: '', Note: '', ...o,
+  Members: o.Members.map(([ItemId, EquivQty], i) => ({ ItemId, EquivQty, Sequence: i + 1 })) })
+const SUBSTITUTION_GROUPS = [
+  G({ GroupId: 'GRP-PEP-SWEET', Name: 'Sweet peppers', Note: 'Any sweet pepper pack can cover another by weight',
+    Members: [['SG-PEP-BELL-3CT', 14.7], ['SG-PEP-TWST-2LB', 12], ['SG-PEP-BELL', 11]] }),
+  G({ GroupId: 'GRP-TOM-SLICE', Name: 'Slicing tomatoes', Note: 'Beefsteak and Romana cover each other by weight',
+    Members: [['SG-TOM-ROM-3LB', 24], ['SG-TOM-BEEF', 15]] }),
+  G({ GroupId: 'GRP-TOM-SNACK', Name: 'Snacking tomatoes', PriceBasis: 'SubstituteItemPrice', Note: 'Premium snacking packs, billed at the pack shipped',
+    Members: [['SG-TOM-ANGEL', 7.5], ['SG-TOM-WW-2LB', 12]] }),
+  G({ GroupId: 'GRP-CUC-ORG', Name: 'Organic minis', Note: 'Organic-for-organic only; conventional minis are not in the group',
+    Members: [['SG-CUC-MINI-ORG', 12], ['SG-CUC-ORG-6CT', 13]] }),
+  G({ GroupId: 'GRP-BER-WOW', Name: 'WOW™ Dreamberry packs', Members: [['SG-BER-WOW-1LB', 8], ['SG-BER-WOW-10OZ', 5]] }),
 ]
 
 // ---------------------------------------------------------------------------
@@ -181,7 +202,7 @@ function splitDemand(total, n, eligible) {
   return custs.map((c, i) => ({ customerId: c.customerId, qty: qty[i], ship: 1 + Math.floor(rnd() * 7), from: Math.floor(rnd() * SHIP_FROM.length) }))
 }
 
-const raw = { asOf: isoDay(0), commodities: [], items: [], customers: [], Demand: [], Supply: [], substitutions: SUBSTITUTIONS }
+const raw = { asOf: isoDay(0), commodities: [], items: [], customers: [], Demand: [], Supply: [], substitutions: SUBSTITUTIONS, substitutionGroups: SUBSTITUTION_GROUPS }
 raw.customers = CUSTOMERS.map((c) => ({ substitutionPolicy: 'Standard', substitutionNote: '', ...c }))
 
 for (const c of COMMODITIES) {
@@ -245,7 +266,7 @@ for (const r of rows) {
 console.log(`\nKPIs: ${rows.length} buyer groups · ${snap.items.length} items · demand ${fmt(td)} · supply ${fmt(ts)} · fill ${((ts / td) * 100).toFixed(1)}% · ${rows.filter((r) => r.status !== 'OK').length} need attention`)
 const pol = (p) => snap.customers.filter((c) => c.substitutionPolicy === p).length
 console.log(`Customers ${snap.customers.length} (Standard ${pol('Standard')} · CustomerOnly ${pol('CustomerOnly')} · Never ${pol('Never')}) · lines ${snap.demand.length} · rules ${snap.substitutions.length} (` +
-  ['Active', 'Expired', 'Scheduled'].map((s) => `${s} ${snap.substitutions.filter((r) => Subs.ruleStatus(r, raw.asOf) === s).length}`).join(' · ') + `) · outbox ${outbox.length}`)
+  ['Active', 'Expired', 'Scheduled'].map((s) => `${s} ${snap.substitutions.filter((r) => Subs.ruleStatus(r, raw.asOf) === s).length}`).join(' · ') + `) · groups ${snap.substitutionGroups.length} (${snap.substitutionGroups.reduce((t, g) => t + g.members.length, 0)} items) · outbox ${outbox.length}`)
 const lineCheck = raw.Demand.reduce((s, d) => s + d.RequestedQty, 0)
 console.log(`Tie-out: demand lines ${fmt(lineCheck)} ${lineCheck === td ? '= buyer-group demand ✓' : '≠ buyer-group demand ✗'}`)
 
@@ -253,7 +274,8 @@ console.log(`Tie-out: demand lines ${fmt(lineCheck)} ${lineCheck === td ? '= buy
 const prorated = Object.fromEntries(snap.items.map((i) => [i.itemId, core.runProration(snap, { strategy: 'Weighted', itemId: i.itemId })]))
 const pools = Object.fromEntries(snap.items.map((i) => { const p = prorated[i.itemId]; return [i.itemId, p.available - p.totalAllocated] }))
 const shortLines = Object.values(prorated).flatMap((p) => p.lines.map((l) => ({ ...l, shortfall: l.requestedQty - l.allocatedQty })))
-const auto = Subs.autoSubstitute({ shortLines, customers: snap.customers, rules: snap.substitutions, pools, asOf: raw.asOf })
+const rulesOnly = Subs.autoSubstitute({ shortLines, customers: snap.customers, rules: snap.substitutions, pools, asOf: raw.asOf })
+const auto = Subs.autoSubstitute({ shortLines, customers: snap.customers, rules: Subs.withGroups(snap.substitutions, snap.substitutionGroups), pools, asOf: raw.asOf })
 const byItem = Object.fromEntries(snap.items.map((i) => [i.itemId, i]))
 let rev = 0, mar = 0, baseMar = 0
 for (const s of auto.staged) {
@@ -262,6 +284,8 @@ for (const s of auto.staged) {
 }
 console.log(`\nAfter Weighted proration on every item → Auto-substitute:`)
 console.log(`  ${auto.staged.length} substitutions · covers ${fmt(auto.coveredQty)} of ${fmt(auto.shortQty)} short cases (${((auto.coveredQty / auto.shortQty) * 100).toFixed(0)}%)`)
+console.log(`  rules only (no groups): ${rulesOnly.staged.length} substitutions · covers ${fmt(rulesOnly.coveredQty)} (${((rulesOnly.coveredQty / rulesOnly.shortQty) * 100).toFixed(0)}%) · ${rulesOnly.skipped.filter((s) => s.reason === 'no-rule').length} lines had no applicable rule`)
+console.log(`  staged from groups: ${auto.staged.filter((s) => s.scope === 'Group').length}`)
 console.log(`  revenue recovered ${money(rev)} · margin ${money(mar)} (${((mar / rev) * 100).toFixed(1)}%) vs ${money(baseMar)} had the ordered items shipped`)
 const why = (r) => auto.skipped.filter((s) => s.reason === r)
 console.log(`  skipped: never ${why('never').length} · no applicable rule ${why('no-rule').length} · substitute stock ran out ${why('stock').length}`)

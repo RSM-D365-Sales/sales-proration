@@ -66,17 +66,24 @@ After proration, a short line can be filled with a different item, **per custome
 - **Rules** (`RSMItemSubstitution`): ordered item → substitute, qty ratio, rank, one-way or
   both ways, valid-from/to, and **bill at** the ordered item's price or the substitute's.
   A rule with no customer applies to everyone; a customer's own rule is offered first.
+- **Interchangeable groups** (`RSMItemSubstitutionGroup` + members): the generic default.
+  A set of items that can stand in for one another, each with an equivalent quantity per
+  case (e.g. 11 lb carton = 11, 12 × 3 ct = 14.7); any member covers any other at
+  `equiv(ordered) / equiv(substitute)`, preferred in member order. Groups serve every
+  Standard-policy customer **after** their own rules and the explicit all-customer rules, so
+  a customer with no rules still gets a sensible substitute and an explicit rule always wins
+  for the same pair. Customer-rules-only and never-substitute customers never get them.
 - **Customer policy** (`CustTable.RSMSubstitutionPolicy`): *Standard* (all-customer rules +
   their own), *Customer rules only*, or *Never substitute*, with a note planners see.
 - **Planner** (commodity page): *Auto-substitute* fills every short line from that customer's
   approved substitutes, P1 first, within each substitute's remaining stock; *Sub…* opens a picker
   with margin preview, and can approve a new customer rule on the spot. The staged list shows
   revenue and margin against the ordered item.
-- **Substitutions page**: customer view ("what does Great Lakes accept instead of …"), rule
-  maintenance, and policies. Edits are drafts until **Publish to D365** (Proration.Admin).
+- **Substitutions page**: customer view ("what does Great Lakes accept instead of …"),
+  interchangeable groups (with a ratio × margin grid per group), rule maintenance, and policies. Edits are drafts until **Publish to D365** (Proration.Admin).
 
 On approval the app sends, in order, on queue `rsmSalesProrateAccelerator`:
-`rsmSalesSubstitutionRuleMessage` (pending rules/policies → `RSMSubstitutionRuleConsumer`),
+`rsmSalesSubstitutionRuleMessage` (pending rules, groups and policies → `RSMSubstitutionRuleConsumer`),
 `rsmSalesProrateAcceleratorMessage` (allocations), `rsmSalesSubstituteAcceleratorMessage`
 (order surgery → `RSMSubstitutionConsumer`, which re-checks policy + rule and prices the new
 line per the rule's price basis). Rule logic lives in

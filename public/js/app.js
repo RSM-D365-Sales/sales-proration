@@ -514,10 +514,12 @@ function itemCard(it) {
 }
 
 // ---- Substitution helpers ---------------------------------------------------
-// Rules and customer policies are the server's plus any unpublished drafts
-// (substitutions.js), so a rule approved mid-planning is usable at once.
+// Rules, interchangeable groups and customer policies are the server's plus
+// any unpublished drafts (substitutions.js), so a rule approved mid-planning
+// is usable at once. Groups expand to virtual rules ranked after every
+// explicit rule (Subs.withGroups).
 
-function detailRules() { return effectiveRules(DETAIL.substitutions || []); }
+function detailRules() { return planningRules(DETAIL.substitutions || [], DETAIL.substitutionGroups || []); }
 function detailCustomers() { return effectiveCustomers(DETAIL.customers || []); }
 function custFor(id) {
   return detailCustomers().find(c => c.customerId === id)
@@ -580,7 +582,8 @@ function stageSub({ line, itemId, cust, toItemId, qty, ratio, rule, scope }) {
     fromItemId: fromId, fromName: from?.name || fromId,
     toItemId, toName: to?.name || toItemId,
     qty, ratio, covered: Math.min(short, qty / ratio),
-    ruleId: rule?.ruleId || '', scope: scope || (rule?.customerId ? 'Customer' : 'All customers'),
+    ruleId: rule?.ruleId || '', groupName: rule?.groupName || '',
+    scope: scope || (rule?.groupId ? 'Group' : rule?.customerId ? 'Customer' : 'All customers'),
     priceBasis: rule?.priceBasis || 'Original', pending: !!rule?.pending,
   });
 }
@@ -627,7 +630,7 @@ function openSubPicker(itemId, key) {
           </div>
           <div class="sub-row__econ" data-econ="${kind}-${i}">${econLine(e)}</div>
         </div>
-        ${kind === 'approved' ? `<span class="sub-row__chips">${scopeChip(c.rule, c.scope)} <span class="chip plain">rank ${esc(c.rule.rank)}</span></span>` : `
+        ${kind === 'approved' ? `<span class="sub-row__chips">${scopeChip(c.rule, c.scope)} <span class="chip plain">${c.scope === 'Group' ? 'group default' : `rank ${esc(c.rule.rank)}`}</span></span>` : `
           <label class="field mini">Ratio <input type="number" min="0.01" step="0.005" value="1" data-ratio="${i}" /></label>
           <label class="field mini">Bill at <select data-basis="${i}"><option value="Original">Ordered</option><option value="Substitute">Substitute</option></select></label>`}
         <label class="field mini">Cases <input type="number" min="1" max="${Math.floor(Math.max(0, c.pool))}" step="1" value="${qty}" data-qty="${kind}-${i}" ${can ? '' : 'disabled'} /></label>
@@ -768,7 +771,7 @@ function renderSubs() {
       <header>
         <div>
           <h3>Staged substitutions</h3>
-          <div class="meta">Sent as an <code>rsmSalesSubstituteAcceleratorMessage</code> batch on approval${pendingRules ? `, after the ${pendingRules} pending customer rule${pendingRules === 1 ? '' : 's'} it relies on` : ''}. D365 reduces each ordered line and adds the substitute line.</div>
+          <div class="meta">Sent as an <code>rsmSalesSubstituteAcceleratorMessage</code> batch on approval${pendingRules ? `, after the ${pendingRules} pending rule${pendingRules === 1 ? '' : 's'} or group${pendingRules === 1 ? '' : 's'} it relies on` : ''}. D365 reduces each ordered line and adds the substitute line.</div>
         </div>
         <div class="item-card__actions"><button class="ghost" data-unsub-all>Clear all</button></div>
       </header>
@@ -783,7 +786,7 @@ function renderSubs() {
               <td title="${esc(s.toItemId)}">${esc(s.toName)}</td>
               <td class="num">${fmt(s.qty)}</td>
               <td class="num">${fmt(s.covered)}</td>
-              <td>${scopeChip(s.ruleId ? { ruleId: s.ruleId, pending: s.pending, customerId: s.scope === 'Customer' ? s.customerId : '' } : null, s.scope)}</td>
+              <td>${scopeChip(s.ruleId ? { ruleId: s.ruleId, pending: s.pending, customerId: s.scope === 'Customer' ? s.customerId : '', groupName: s.groupName } : null, s.scope)}</td>
               <td class="nowrap">${s.priceBasis === 'Substitute' ? 'Substitute' : 'Ordered item'}</td>
               <td class="num">${money(econ[i]?.revenue)}</td>
               <td class="num nowrap">${marginCell(econ[i])}</td>

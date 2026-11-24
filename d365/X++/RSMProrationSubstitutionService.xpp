@@ -4,9 +4,11 @@
 //          external proration app.
 //
 // Wire-up options (either works; the web app tolerates both):
-//   a) Preferred — add a `substitutions` collection to the snapshot payload
-//      returned by SPASalesOrderService.GetOpenSalesOrders, so the app gets
-//      rules in the same single call as demand/supply/customers.
+//   a) Preferred — add `substitutions` (getSubstitutions) and
+//      `substitutionGroups` (getSubstitutionGroups) collections to the
+//      snapshot payload returned by SPASalesOrderService.GetOpenSalesOrders,
+//      so the app gets rules and groups in the same single call as
+//      demand/supply/customers.
 //   b) Standalone — register this service in RSMProrationReadSvcGrp and let
 //      the app call it separately.
 
@@ -50,6 +52,52 @@ public class RSMProrationSubstitutionService
             c.parmValidTo(sub.ValidTo);
             c.parmNote(sub.Note);
             result.addEnd(c);
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Interchangeable groups that are not expired, with members in
+    /// preference order; feeds the snapshot's `substitutionGroups` collection.
+    /// Optionally scoped to groups with a member in one commodity.
+    /// </summary>
+    [SysEntryPointAttribute]
+    public List getSubstitutionGroups(str _commodityId = '')
+    {
+        List                     result = new List(Types::Class);
+        RSMItemSubstitutionGroup grp;
+        TransDate                today  = systemDateGet();
+
+        while select grp
+            order by grp.Name
+            where (!grp.ValidTo || grp.ValidTo >= today)
+        {
+            RSMSubstitutionGroupRecordContract c = new RSMSubstitutionGroupRecordContract();
+            c.parmGroupId(grp.GroupId);
+            c.parmName(grp.Name);
+            c.parmUnit(grp.Unit);
+            c.parmPriceBasis(enum2Symbol(enumNum(RSMSubstitutionPriceBasis), grp.PriceBasis));
+            c.parmValidFrom(grp.ValidFrom);
+            c.parmValidTo(grp.ValidTo);
+            c.parmNote(grp.Note);
+
+            List    members = new List(Types::Class);
+            boolean inScope = !_commodityId;
+            RSMItemSubstitutionGroupMember m;
+            while select m order by m.Sequence where m.GroupId == grp.GroupId
+            {
+                RSMSubstitutionGroupMemberContract mc = new RSMSubstitutionGroupMemberContract();
+                mc.parmItemId(m.ItemId);
+                mc.parmEquivQty(m.EquivQty);
+                mc.parmSequence(m.Sequence);
+                members.addEnd(mc);
+                inScope = inScope || RSMProrationSubstitutionService::itemInCommodity(m.ItemId, _commodityId);
+            }
+            c.parmMembers(members);
+            if (inScope)
+            {
+                result.addEnd(c);
+            }
         }
         return result;
     }

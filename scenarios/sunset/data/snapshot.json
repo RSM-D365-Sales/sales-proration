@@ -899,19 +899,6 @@
     {
       "Direction": "OneWay",
       "Rank": 1,
-      "QtyRatio": 0.75,
-      "PriceBasis": "Original",
-      "CustAccount": "",
-      "ValidFrom": "",
-      "ValidTo": "",
-      "RuleId": "SUB-1001",
-      "FromItemId": "SG-PEP-BELL",
-      "ToItemId": "SG-PEP-BELL-3CT",
-      "Note": "22 peppers per carton ≈ 0.75 case of 12 × 3 ct"
-    },
-    {
-      "Direction": "OneWay",
-      "Rank": 1,
       "QtyRatio": 1,
       "PriceBasis": "Original",
       "CustAccount": "C10001",
@@ -921,43 +908,6 @@
       "FromItemId": "SG-PEP-BELL",
       "ToItemId": "SG-PEP-TWST-2LB",
       "Note": "Great Lakes merchandising prefers Sweet Twister on bell shortfalls"
-    },
-    {
-      "Direction": "OneWay",
-      "Rank": 2,
-      "QtyRatio": 1,
-      "PriceBasis": "Original",
-      "CustAccount": "",
-      "ValidFrom": "",
-      "ValidTo": "",
-      "RuleId": "SUB-1003",
-      "FromItemId": "SG-PEP-TWST-2LB",
-      "ToItemId": "SG-PEP-BELL-3CT"
-    },
-    {
-      "Direction": "OneWay",
-      "Rank": 1,
-      "QtyRatio": 0.625,
-      "PriceBasis": "Original",
-      "CustAccount": "",
-      "ValidFrom": "",
-      "ValidTo": "",
-      "RuleId": "SUB-2001",
-      "FromItemId": "SG-TOM-BEEF",
-      "ToItemId": "SG-TOM-ROM-3LB",
-      "Note": "15 lb carton = 0.625 case of 8 × 3 lb"
-    },
-    {
-      "Direction": "Bidirectional",
-      "Rank": 1,
-      "QtyRatio": 1.6,
-      "PriceBasis": "Substitute",
-      "CustAccount": "",
-      "ValidFrom": "",
-      "ValidTo": "",
-      "RuleId": "SUB-2002",
-      "FromItemId": "SG-TOM-WW-2LB",
-      "ToItemId": "SG-TOM-ANGEL"
     },
     {
       "Direction": "OneWay",
@@ -1015,19 +965,6 @@
       "Direction": "OneWay",
       "Rank": 1,
       "QtyRatio": 0.625,
-      "PriceBasis": "Original",
-      "CustAccount": "",
-      "ValidFrom": "",
-      "ValidTo": "",
-      "RuleId": "SUB-4001",
-      "FromItemId": "SG-BER-WOW-10OZ",
-      "ToItemId": "SG-BER-WOW-1LB",
-      "Note": "8 × 10 oz = 0.625 case of 8 × 1 lb"
-    },
-    {
-      "Direction": "OneWay",
-      "Rank": 1,
-      "QtyRatio": 0.625,
       "PriceBasis": "Substitute",
       "CustAccount": "C10002",
       "ValidFrom": "",
@@ -1036,6 +973,118 @@
       "FromItemId": "SG-BER-WOW-10OZ",
       "ToItemId": "SG-BER-WOW-1LB",
       "Note": "Northwind pays the 1 lb price on trade-up"
+    }
+  ],
+  "substitutionGroups": [
+    {
+      "PriceBasis": "OriginalItemPrice",
+      "Unit": "lb",
+      "ValidFrom": "",
+      "ValidTo": "",
+      "Note": "Any sweet pepper pack can cover another by weight",
+      "GroupId": "GRP-PEP-SWEET",
+      "Name": "Sweet peppers",
+      "Members": [
+        {
+          "ItemId": "SG-PEP-BELL-3CT",
+          "EquivQty": 14.7,
+          "Sequence": 1
+        },
+        {
+          "ItemId": "SG-PEP-TWST-2LB",
+          "EquivQty": 12,
+          "Sequence": 2
+        },
+        {
+          "ItemId": "SG-PEP-BELL",
+          "EquivQty": 11,
+          "Sequence": 3
+        }
+      ]
+    },
+    {
+      "PriceBasis": "OriginalItemPrice",
+      "Unit": "lb",
+      "ValidFrom": "",
+      "ValidTo": "",
+      "Note": "Beefsteak and Romana cover each other by weight",
+      "GroupId": "GRP-TOM-SLICE",
+      "Name": "Slicing tomatoes",
+      "Members": [
+        {
+          "ItemId": "SG-TOM-ROM-3LB",
+          "EquivQty": 24,
+          "Sequence": 1
+        },
+        {
+          "ItemId": "SG-TOM-BEEF",
+          "EquivQty": 15,
+          "Sequence": 2
+        }
+      ]
+    },
+    {
+      "PriceBasis": "SubstituteItemPrice",
+      "Unit": "lb",
+      "ValidFrom": "",
+      "ValidTo": "",
+      "Note": "Premium snacking packs, billed at the pack shipped",
+      "GroupId": "GRP-TOM-SNACK",
+      "Name": "Snacking tomatoes",
+      "Members": [
+        {
+          "ItemId": "SG-TOM-ANGEL",
+          "EquivQty": 7.5,
+          "Sequence": 1
+        },
+        {
+          "ItemId": "SG-TOM-WW-2LB",
+          "EquivQty": 12,
+          "Sequence": 2
+        }
+      ]
+    },
+    {
+      "PriceBasis": "OriginalItemPrice",
+      "Unit": "lb",
+      "ValidFrom": "",
+      "ValidTo": "",
+      "Note": "Organic-for-organic only; conventional minis are not in the group",
+      "GroupId": "GRP-CUC-ORG",
+      "Name": "Organic minis",
+      "Members": [
+        {
+          "ItemId": "SG-CUC-MINI-ORG",
+          "EquivQty": 12,
+          "Sequence": 1
+        },
+        {
+          "ItemId": "SG-CUC-ORG-6CT",
+          "EquivQty": 13,
+          "Sequence": 2
+        }
+      ]
+    },
+    {
+      "PriceBasis": "OriginalItemPrice",
+      "Unit": "lb",
+      "ValidFrom": "",
+      "ValidTo": "",
+      "Note": "",
+      "GroupId": "GRP-BER-WOW",
+      "Name": "WOW™ Dreamberry packs",
+      "Members": [
+        {
+          "ItemId": "SG-BER-WOW-1LB",
+          "EquivQty": 8,
+          "Sequence": 1
+        },
+        {
+          "ItemId": "SG-BER-WOW-10OZ",
+          "EquivQty": 5,
+          "Sequence": 2
+        }
+      ]
     }
   ]
 }

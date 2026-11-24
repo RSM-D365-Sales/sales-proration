@@ -523,3 +523,26 @@ code { background: var(--accent-soft); padding: 1px 6px; border-radius: 5px; fon
   .kpi:nth-child(n+3) { border-top: 1px solid var(--line); }
   .kpi:nth-child(odd) { border-left: 0; }
 }
+
+/* ---- Interchangeable groups (Substitutions page) ---------------------------- */
+.section-row { align-items: flex-end; margin: 0; flex-wrap: nowrap; gap: 1.5rem; }
+.section-row > div { flex: 1; }
+.section-row > button { margin-bottom: 1.2rem; flex: none; }
+.section-row .section-sub { max-width: 62rem; }
+.group-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 30rem), 1fr)); gap: 1rem; }
+.group-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.group-card.is-pending { border-color: var(--warn); }
+.group-card > header { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; padding: 1rem 1.15rem .6rem; }
+.group-card h3 { margin: 0; font-size: 1.02rem; display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.group-card .meta { color: var(--muted); font-size: .8rem; margin-top: .2rem; }
+.group-members { margin: 0 1.15rem .8rem; padding-left: 1.2rem; }
+.group-members li { margin: .2rem 0; }
+.group-members .chip { margin-left: .35rem; }
+.group-matrix { border: 0; border-radius: 0; box-shadow: none; border-top: 1px solid var(--line); font-size: .82rem; }
+.group-matrix th[scope="row"] { font-weight: 600; text-align: left; }
+.group-matrix .small { font-size: .74rem; }
+.group-edit td, .group-edit th { vertical-align: middle; }
+.group-edit tr.is-off td { color: var(--muted); }
+.grid input.equiv-input { width: 5.5rem; min-width: 0; text-align: right; }
+.chip.group { background: var(--accent-soft); color: var(--accent); }
+.chip.group::before { display: none; }

@@ -83,6 +83,30 @@ function normalizeSubstitution(s, i) {
   };
 }
 
+// Interchangeable group (RSMItemSubstitutionGroup + members). Members are
+// sorted by Sequence: the first is the preferred substitute.
+function normalizeGroup(g, i) {
+  const members = asArray(pick(g, 'members', 'Members'))
+    .map((m, j) => ({
+      itemId:   pick(m, 'itemId', 'ItemId'),
+      equivQty: num(pick(m, 'equivQty', 'EquivQty'), 0),
+      seq:      num(pick(m, 'sequence', 'Sequence'), j + 1),
+    }))
+    .filter(m => m.itemId)
+    .sort((a, b) => a.seq - b.seq)
+    .map(({ itemId, equivQty }) => ({ itemId, equivQty }));
+  return {
+    groupId:    String(pick(g, 'groupId', 'GroupId') ?? `G-${String(i + 1).padStart(3, '0')}`),
+    name:       String(pick(g, 'name', 'Name') ?? ''),
+    unit:       String(pick(g, 'unit', 'Unit') ?? ''),
+    priceBasis: priceBasisOf(pick(g, 'priceBasis', 'PriceBasis')),
+    validFrom:  toDate(pick(g, 'validFrom', 'ValidFrom')),
+    validTo:    toDate(pick(g, 'validTo', 'ValidTo')),
+    note:       String(pick(g, 'note', 'Note') ?? ''),
+    members,
+  };
+}
+
 function normalizeSnapshot(raw) {
   const commodities = asArray(get(raw, 'commodities')).map(c => {
     const id = pick(c, 'commodityId', 'CommodityId');
@@ -136,6 +160,8 @@ function normalizeSnapshot(raw) {
   // Item substitution whitelist (RSMItemSubstitution rows). Optional — a feed
   // without it leaves every candidate "unverified".
   const substitutions = asArray(get(raw, 'substitutions')).map(normalizeSubstitution);
+  // Interchangeable groups: the generic layer under the rules. Optional.
+  const substitutionGroups = asArray(get(raw, 'substitutionGroups')).map(normalizeGroup);
 
   // The SPA feed has no fill-rate history; History-Aware degrades to Weighted.
   const customerFillHistory = {};
@@ -144,10 +170,10 @@ function normalizeSnapshot(raw) {
   // a live feed doesn't, and rule validity is then judged against today.
   const asOf = toDate(get(raw, 'asOf'));
 
-  return { asOf, commodities, items, customers, demand, supply, substitutions, customerFillHistory };
+  return { asOf, commodities, items, customers, demand, supply, substitutions, substitutionGroups, customerFillHistory };
 }
 
-const api = { normalizeSnapshot, normalizeSubstitution, policyOf, priceBasisOf, POLICIES, get, pick, num, intOr, toDate, asArray };
+const api = { normalizeSnapshot, normalizeSubstitution, normalizeGroup, policyOf, priceBasisOf, POLICIES, get, pick, num, intOr, toDate, asArray };
 if (typeof module === 'object' && module.exports) module.exports = api;
 else root.Snapshot = api;
 })(typeof self !== 'undefined' ? self : globalThis);
