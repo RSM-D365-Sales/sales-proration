@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Substitutions</title>
+  <!-- Self-hosted fonts (SF-04) — no CDN dependency. -->
+  <link rel="stylesheet" href="fonts/fonts.css" />
+  <link rel="stylesheet" href="styles/base.css" />
+  <link rel="stylesheet" href="styles/skin-editorial.css" />
+  <link rel="stylesheet" href="styles/skin-enterprise.css" />
+  <link rel="stylesheet" href="styles/skin-bluestem.css" />
+  <link rel="stylesheet" href="styles/skin-sunset.css" />
+  <script src="js/theme-boot.js"></script>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <div class="content">
+      <header class="pagehead" id="pagehead"></header>
+      <main class="main">
+        <section id="kpis" class="kpis"></section>
+        <section id="subs-pending"></section>
+
+        <div id="sv-anchor">
+          <h2 class="section-title">By customer</h2>
+          <p class="section-sub">What this customer accepts in place of each item they order, in the order the planner offers it.</p>
+          <div class="row filters">
+            <label class="field">Customer
+              <select id="sv-customer"></select>
+            </label>
+            <label class="check">
+              <input id="sv-all" type="checkbox" />
+              <span>All items, not just those on open orders</span>
+            </label>
+          </div>
+          <section id="subs-customer"></section>
+        </div>
+
+        <div class="block">
+          <h2 class="section-title">Substitution rules</h2>
+          <p class="section-sub">RSMItemSubstitution in D365. A rule with no customer applies to every Standard-policy customer; a customer’s own rule is offered first.</p>
+          <div class="row filters">
+            <label class="field">Search
+              <input id="sr-search" type="text" placeholder="Item, customer or rule…" />
+            </label>
+            <label class="field">Buyer group
+              <select id="sr-group"></select>
+            </label>
+            <label class="field">Scope
+              <select id="sr-scope">
+                <option value="">All rules</option>
+                <option value="customer">Customer-specific</option>
+                <option value="all">All customers</option>
+              </select>
+            </label>
+            <label class="field">Status
+              <select id="sr-status">
+                <option value="live">Active + scheduled</option>
+                <option value="Active">Active</option>
+                <option value="Scheduled">Scheduled</option>
+                <option value="Expired">Expired</option>
+                <option value="all">All</option>
+              </select>
+            </label>
+            <span class="muted" id="sr-count"></span>
+            <button class="primary" id="sr-new">New rule</button>
+          </div>
+          <table id="rule-table" class="grid">
+            <thead>
+              <tr>
+                <th>Rule</th><th>Customer</th><th>Ordered item</th><th>Substitute</th>
+                <th class="num">Rank</th><th class="num">Qty ratio</th><th>Bill at</th>
+                <th class="num">Margin at list</th><th>Valid</th><th>Status</th><th></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+          <p class="muted" id="sr-deleted"></p>
+        </div>
+
+        <div class="block">
+          <h2 class="section-title">Customer substitution policies</h2>
+          <p class="section-sub">CustTable · Substitution policy. Click a customer to see their substitutes above.</p>
+          <table id="policy-table" class="grid grid--clickable">
+            <thead>
+              <tr><th>Customer</th><th>Segment</th><th>Priority</th><th class="num">Own rules</th><th>Policy</th><th>Note</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="js/vendor/msal-browser.min.js"></script>
+  <script src="config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/shell.js"></script>
+  <script src="js/shared/subs.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/substitutions.js"></script>
+  <script src="js/boot.js"></script>
+</body>
+</html>

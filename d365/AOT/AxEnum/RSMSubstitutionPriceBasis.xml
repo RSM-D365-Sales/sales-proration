@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxEnum xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+  <Name>RSMSubstitutionPriceBasis</Name>
+  <Label>Bill substitute at</Label>
+  <Help>Whether a substitute line is priced at the ordered item's price (per case covered) or at the substitute item's own trade-agreement price.</Help>
+  <Tags>RSM_SalesProration</Tags>
+  <UseEnumValue>No</UseEnumValue>
+  <EnumValues>
+    <AxEnumValue>
+      <Name>OriginalItemPrice</Name>
+      <Label>Ordered item price</Label>
+      <Value>0</Value>
+    </AxEnumValue>
+    <AxEnumValue>
+      <Name>SubstituteItemPrice</Name>
+      <Label>Substitute item price</Label>
+      <Value>1</Value>
+    </AxEnumValue>
+  </EnumValues>
+</AxEnum>

@@ -116,7 +116,7 @@ async function renderLanding() {
   } catch (err) {
     console.error('[batches]', err);
     document.querySelector('#batch-table tbody').innerHTML =
-      `<tr><td colspan="5" class="muted">Couldn’t load batches (${esc(err.message)}).</td></tr>`;
+      `<tr><td colspan="6" class="muted">Couldn’t load batches (${esc(err.message)}).</td></tr>`;
   }
 
   // Header Refresh button re-pulls and repaints in place — no page reload.
@@ -153,20 +153,50 @@ function paintLanding(rows) {
     img.addEventListener('error', () => { img.src = 'img/commodities/_fallback.svg'; }, { once: true }));
 }
 
+const BATCH_LABEL = {
+  rsmSalesSubstitutionRuleMessage: 'Substitution rules',
+  rsmSalesSubstituteAcceleratorMessage: 'Substitution',
+  rsmSalesProrateAcceleratorMessage: 'Proration',
+};
+let BATCHES = [];
+
 function paintBatches(batches) {
-  document.querySelector('#batch-table tbody').innerHTML = batches.length
-    ? batches.slice().reverse().map(b => {
+  BATCHES = batches.slice().reverse();
+  const tbody = document.querySelector('#batch-table tbody');
+  tbody.innerHTML = BATCHES.length
+    ? BATCHES.map((b, i) => {
         const body = b.body || {};
+        // Outbox entries without an envelope (local Express outbox, seeded
+        // history) are proration unless their strategy says otherwise.
+        const type = b.envelope?._messageType
+          || ({ Substitution: 'rsmSalesSubstituteAcceleratorMessage', 'Substitution rules': 'rsmSalesSubstitutionRuleMessage' }[body.strategy])
+          || 'rsmSalesProrateAcceleratorMessage';
+        const kind = BATCH_LABEL[type];
+        const detail = type === 'rsmSalesProrateAcceleratorMessage' && body.strategy && body.strategy !== 'Proration' ? ` · ${esc(body.strategy)}` : '';
         return `
           <tr>
             <td><code>${esc(String(body.batchId || '').slice(0, 8) || '—')}</code></td>
-            <td>${esc(body.strategy || '')}</td>
+            <td>${esc(kind)}${detail}</td>
             <td>${esc(body.commodityId || '')}</td>
             <td class="num">${Array.isArray(body.lines) ? body.lines.length : 0}</td>
             <td class="muted">${esc(b.enqueuedUtc || '')}</td>
+            <td class="num">${b.envelope ? `<button class="ghost" data-batch-payload="${i}">Payload</button>` : ''}</td>
           </tr>`;
       }).join('')
-    : `<tr><td colspan="5" class="muted">No batches sent yet.</td></tr>`;
+    : `<tr><td colspan="6" class="muted">No batches sent yet.</td></tr>`;
+  if (!tbody.dataset.wired) {
+    tbody.dataset.wired = '1';
+    tbody.addEventListener('click', e => {
+      const btn = e.target.closest('[data-batch-payload]');
+      if (!btn) return;
+      const b = BATCHES[Number(btn.dataset.batchPayload)];
+      openOverlay(`
+        <h3>${esc(BATCH_LABEL[b.envelope._messageType] || 'Message')} · <code>${esc(String(b.body?.batchId || '').slice(0, 8))}</code></h3>
+        <div class="overlay__sub">SysMessageService.SendMessage as sent ${esc(b.enqueuedUtc || '')}</div>
+        ${envelopeHtml(b.envelope)}
+        <div class="row" style="margin:1rem 0 0;justify-content:flex-end"><button class="primary" data-close>Close</button></div>`, { wide: true });
+    });
+  }
 }
 
 function commodityCard(r) {
@@ -182,6 +212,7 @@ function commodityCard(r) {
         <div class="card__title">${esc(r.name)}</div>
         <div class="card__desc">${esc(r.description || '')}</div>
         <div class="meter ${st.meter}"><i style="width:${fillW}%"></i></div>
+        ${r.shortItems ? `<div class="card__flag">${r.shortItems} of ${r.itemCount} item${r.itemCount === 1 ? '' : 's'} short</div>` : ''}
         <div class="card__stats">
           <div class="card__stat"><div class="k">Items</div><div class="v">${r.itemCount}</div></div>
           <div class="card__stat"><div class="k">Demand</div><div class="v">${fmt(r.totalDemand)}</div></div>
@@ -251,6 +282,7 @@ function customerComparator(a, b) {
       case 'location': return `${c.state} ${c.city}`.trim().toLowerCase();
       // needs proration first, then covered, then no open demand
       case 'status':   return c.needsProration ? 0 : (c.openLines > 0 ? 1 : 2);
+      case 'policy':   return { Never: 0, CustomerOnly: 1 }[c.substitutionPolicy] ?? 2;
       default:         return c[key]; // priority / openLines / itemCount / requestedQty
     }
   };
@@ -295,8 +327,9 @@ function renderCustomerRows() {
           <td class="num">${fmt(c.itemCount)}</td>
           <td class="num">${fmt(c.requestedQty)}</td>
           <td>${customerStatus(c)}</td>
+          <td><a href="substitutions.html?customer=${encodeURIComponent(c.customerId)}">${c.substitutionPolicy && c.substitutionPolicy !== 'Standard' ? policyChip(c) : '<span class="chip plain">Standard</span>'}</a>${c.customerRules ? ` <span class="muted">${fmt(c.customerRules)} own rule${c.customerRules === 1 ? '' : 's'}</span>` : ''}</td>
         </tr>`).join('')
-    : `<tr><td colspan="7" class="muted">No customers match the current filters.</td></tr>`;
+    : `<tr><td colspan="8" class="muted">No customers match the current filters.</td></tr>`;
 }
 
 // ---- Commodity detail: inline proration -------------------------------------
@@ -312,8 +345,9 @@ function renderCustomerRows() {
 
 let DETAIL = null;       // loaded commodity payload
 let PRORATIONS = {};     // itemId -> /api/prorate response
-let SUBSTITUTIONS = [];  // staged subs: { salesId, lineNum, customerName,
-                         //   fromItemId, fromName, toItemId, toName, qty, verified }
+let SUBSTITUTIONS = [];  // staged subs: { salesId, lineNum, customerId, customerName,
+                         //   fromItemId, fromName, toItemId, toName, qty (substitute cases),
+                         //   ratio, covered (ordered cases), ruleId, scope, priceBasis, pending }
 
 async function renderDetail() {
   try { await initShell({ active: 'plan' }); } catch (e) { console.error('[shell]', e); }
@@ -340,6 +374,7 @@ async function renderDetail() {
 
   PRORATIONS = {};
   SUBSTITUTIONS = [];
+  AUTO_NOTE = null;
   renderItems();
 
   // Header Refresh button. Staged proration work belongs to the planner —
@@ -350,6 +385,7 @@ async function renderDetail() {
       if (!confirm('Refreshing re-pulls D365 data and discards your staged proration work. Continue?')) return;
       PRORATIONS = {};
       SUBSTITUTIONS = [];
+      AUTO_NOTE = null;
     }
     const fresh = await fetchIfChanged('detail', '/api/commodities/' + encodeURIComponent(id));
     if (fresh) DETAIL = fresh;
@@ -364,6 +400,13 @@ async function renderDetail() {
   });
   document.getElementById('pp-run-all').addEventListener('click', prorateAll);
   document.getElementById('pp-approve').addEventListener('click', approveBatch);
+  document.getElementById('pp-auto-sub').addEventListener('click', async e => {
+    const btn = e.currentTarget; btn.disabled = true;
+    try { await autoSubstituteAll(); } finally { btn.disabled = false; }
+  });
+  document.getElementById('autosub-note').addEventListener('click', e => {
+    if (e.target.id === 'autosub-dismiss') { AUTO_NOTE = null; renderAutoNote(); }
+  });
 
   // Delegated handlers survive re-renders of #items.
   const items = document.getElementById('items');
@@ -377,7 +420,8 @@ async function renderDetail() {
 
   document.getElementById('subs').addEventListener('click', e => {
     const rm = e.target.closest('button[data-unsub]');
-    if (rm) { SUBSTITUTIONS.splice(Number(rm.dataset.unsub), 1); renderItems(); }
+    if (rm) { SUBSTITUTIONS.splice(Number(rm.dataset.unsub), 1); renderItems(); return; }
+    if (e.target.closest('[data-unsub-all]')) { SUBSTITUTIONS = []; AUTO_NOTE = null; renderItems(); }
   });
 
   // Deep link: commodity.html?id=…&prorate=all runs the default strategy
@@ -406,6 +450,15 @@ function renderItems() {
 
 function lineKey(l) { return `${l.salesId}:${l.lineNum}`; }
 
+/** Last column of a prorated line: "Sub…" while it's short, a covered chip once substitutes fill it. */
+function subCell(itemId, l) {
+  const covered = subCoverage(l.salesId, l.lineNum);
+  const short = lineShortfall(l);
+  const chip = covered ? ` <span class="chip OK" title="${fmt(covered)} ordered cases covered by substitutes">sub +${fmt(covered)}</span>` : '';
+  if (short > 0) return `<button class="ghost" data-sub-item="${esc(itemId)}" data-sub-key="${esc(lineKey(l))}">Sub…</button>${chip}`;
+  return chip;
+}
+
 function itemCard(it) {
   const pr = PRORATIONS[it.itemId];
   const byKey = pr ? Object.fromEntries(pr.lines.map(l => [lineKey(l), l])) : {};
@@ -424,13 +477,13 @@ function itemCard(it) {
                  value="${l.allocatedQty}" data-item="${esc(it.itemId)}" data-key="${esc(lineKey(l))}" /></td>
             <td class="num fill-cell">${pct(l.requestedQty ? l.allocatedQty / l.requestedQty : 0)}</td>
             <td class="num">${l.weightUsed.toFixed(2)}</td>
-            ${canSub ? `<td><button class="ghost" data-sub-item="${esc(it.itemId)}" data-sub-key="${esc(lineKey(l))}">Sub…</button></td>` : ''}`
+            ${canSub ? `<td class="nowrap">${subCell(it.itemId, l)}</td>` : ''}`
             : `<td class="num muted" colspan="${canSub ? 4 : 3}">—</td>`;
         }
         return `
         <tr>
-          <td>${esc(d.salesId)} / ${esc(d.lineNum)}</td>
-          <td>${esc(d.customerName)} <span class="muted">(P${esc(d.priority)})</span></td>
+          <td class="nowrap">${esc(d.salesId)} / ${esc(d.lineNum)}</td>
+          <td>${esc(d.customerName)} <span class="muted">(P${esc(d.priority)})</span> ${policyChip(custFor(d.customerId))}</td>
           <td>${esc(d.siteId)}</td>
           <td>${esc(d.warehouseId)}</td>
           <td>${esc(d.requestedShipDate)}</td>
@@ -460,6 +513,28 @@ function itemCard(it) {
     </div>`;
 }
 
+// ---- Substitution helpers ---------------------------------------------------
+// Rules and customer policies are the server's plus any unpublished drafts
+// (substitutions.js), so a rule approved mid-planning is usable at once.
+
+function detailRules() { return effectiveRules(DETAIL.substitutions || []); }
+function detailCustomers() { return effectiveCustomers(DETAIL.customers || []); }
+function custFor(id) {
+  return detailCustomers().find(c => c.customerId === id)
+    || { customerId: id, name: id, priority: 3, substitutionPolicy: 'Standard', substitutionNote: '' };
+}
+function itemFor(id) { return DETAIL.items.find(i => i.itemId === id); }
+
+/** Ordered cases on a line already covered by staged substitutes. */
+function subCoverage(salesId, lineNum) {
+  return SUBSTITUTIONS.filter(s => s.salesId === salesId && s.lineNum === lineNum)
+    .reduce((t, s) => t + (Number(s.covered) || 0), 0);
+}
+/** What is still unfilled on a prorated line after allocation and staged substitutes. */
+function lineShortfall(l) {
+  return Math.max(0, l.requestedQty - (Number(l.allocatedQty) || 0) - subCoverage(l.salesId, l.lineNum));
+}
+
 /** Units of an item already promised away as a SUBSTITUTE on staged subs. */
 function subDrawn(itemId) {
   return SUBSTITUTIONS.filter(s => s.toItemId === itemId)
@@ -475,11 +550,11 @@ function remainingFor(itemId) {
 }
 
 /** Pool a substitute can draw from: prorated items use their live remaining;
- *  unprorated items expose their full (uncommitted) supply minus staged subs. */
+ *  unprorated items offer only their surplus over their own open demand. */
 function poolFor(item) {
   return PRORATIONS[item.itemId]
     ? remainingFor(item.itemId)
-    : item.totalSupply - subDrawn(item.itemId);
+    : Math.max(0, item.totalSupply - item.totalDemand) - subDrawn(item.itemId);
 }
 
 function remainingChip(itemId) {
@@ -488,124 +563,242 @@ function remainingChip(itemId) {
   const label = rem > 0 ? `+${fmt(rem)} to allocate`
               : rem < 0 ? `${fmt(rem)} over-allocated`
               : 'fully allocated';
-  return `<span class="chip ${cls}" data-rem="${esc(itemId)}" title="Available ${fmt(PRORATIONS[itemId].available)} − allocated">${label}</span>`;
+  return `<span class="chip ${cls}" data-rem="${esc(itemId)}" title="Available ${fmt(PRORATIONS[itemId].available)} − allocated − substitutes drawn">${label}</span>`;
 }
 
-// ---- Item substitution (Option 2: same buyer group + available inventory) ---
+function econFor(s) {
+  return Subs.subEconomics({ fromItem: itemFor(s.fromItemId), toItem: itemFor(s.toItemId), qty: s.qty, ratio: s.ratio, priceBasis: s.priceBasis });
+}
+
+function stageSub({ line, itemId, cust, toItemId, qty, ratio, rule, scope }) {
+  const fromId = itemId || line.itemId;
+  const from = itemFor(fromId), to = itemFor(toItemId);
+  const short = lineShortfall(line);
+  SUBSTITUTIONS.push({
+    salesId: line.salesId, lineNum: line.lineNum,
+    customerId: cust.customerId, customerName: cust.name || cust.customerId,
+    fromItemId: fromId, fromName: from?.name || fromId,
+    toItemId, toName: to?.name || toItemId,
+    qty, ratio, covered: Math.min(short, qty / ratio),
+    ruleId: rule?.ruleId || '', scope: scope || (rule?.customerId ? 'Customer' : 'All customers'),
+    priceBasis: rule?.priceBasis || 'Original', pending: !!rule?.pending,
+  });
+}
+
+// ---- Substitute picker ------------------------------------------------------
 //
-// Any line still short after proration gets a "Sub…" action. Candidates are
-// the other items in this buyer group with inventory left in their pool
-// (prorated items: live remaining; unprorated: uncommitted supply). When the
-// D365 feed starts sending RSMItemSubstitution rules, matching candidates
-// rank first and show "rule" — everything else is badged "unverified".
-
-function subRuleFor(fromItemId, toItemId, customerId) {
-  const rules = (DETAIL.substitutions || []).filter(r =>
-    (r.fromItemId === fromItemId && r.toItemId === toItemId) ||
-    (r.direction === 'Bidirectional' && r.fromItemId === toItemId && r.toItemId === fromItemId));
-  // customer-specific rule wins over a blank (all-customers) one
-  return rules.find(r => r.customerId === customerId) || rules.find(r => !r.customerId) || null;
-}
+// Approved: the customer's applicable rules (their own first, then
+// all-customer rules unless their policy is "customer rules only"), each with
+// a live margin preview. Other items in the buyer group can be approved for
+// this customer on the spot — that drafts a customer rule, which is published
+// to D365 ahead of the substitution on approval. "Never substitute"
+// customers get no candidates.
 
 function openSubPicker(itemId, key) {
   const pr = PRORATIONS[itemId];
   const line = pr?.lines.find(l => lineKey(l) === key);
   if (!line) return;
+  const item = itemFor(itemId);
+  const cust = custFor(line.customerId);
+  const shortfall = lineShortfall(line);
+  const rules = detailRules();
 
-  const item = DETAIL.items.find(i => i.itemId === itemId);
-  const shortfall = Math.max(0, line.requestedQty - (Number(line.allocatedQty) || 0));
+  const approved = Subs.substitutesFor(rules, cust, itemId, DETAIL.asOf)
+    .filter(c => itemFor(c.toItemId))
+    .map(c => ({ ...c, item: itemFor(c.toItemId), pool: poolFor(itemFor(c.toItemId)) }));
+  const approvedIds = new Set(approved.map(c => c.toItemId));
+  const others = cust.substitutionPolicy === 'Never' ? [] : DETAIL.items
+    .filter(x => x.itemId !== itemId && !approvedIds.has(x.itemId))
+    .map(x => ({ toItemId: x.itemId, item: x, pool: poolFor(x), ratio: 1, rule: null }))
+    .filter(c => c.pool >= 1);
 
-  const candidates = DETAIL.items
-    .filter(x => x.itemId !== itemId)
-    .map(x => ({ item: x, pool: poolFor(x), rule: subRuleFor(itemId, x.itemId, line.customerId) }))
-    .filter(c => c.pool > 0)
-    .sort((a, b) => (b.rule ? 1 : 0) - (a.rule ? 1 : 0)
-      || (a.rule && b.rule ? a.rule.rank - b.rule.rank : 0)
-      || b.pool - a.pool);
-
-  const rows = candidates.length ? candidates.map((c, i) => {
-    const ratio = c.rule?.qtyRatio || 1;
-    const suggested = Math.max(1, Math.min(Math.ceil(shortfall * ratio), Math.floor(c.pool)));
-    const badge = c.rule
-      ? `<span class="chip OK">rule · rank ${esc(c.rule.rank)}${ratio !== 1 ? ` · ×${esc(ratio)}` : ''}</span>`
-      : `<span class="chip plain">unverified — no substitution rule</span>`;
+  const suggest = c => Math.max(1, Math.min(Math.ceil(shortfall * c.ratio - 1e-9), Math.floor(c.pool)));
+  const econLine = e => (e ? `covers ${fmt(e.covered)} · ${money(e.revenue)} · margin ${marginCell(e)}` : '');
+  const row = (c, i, kind) => {
+    const can = c.pool >= 1;
+    const qty = can ? suggest(c) : 0;
+    const e = can ? Subs.subEconomics({ fromItem: item, toItem: c.item, qty, ratio: c.ratio, priceBasis: c.rule?.priceBasis || 'Original' }) : null;
     return `
-      <div class="sub-row">
+      <div class="sub-row ${can ? '' : 'is-off'}">
         <div class="sub-row__main">
           <div class="sub-row__name">${esc(c.item.name)} <span class="muted">${esc(c.item.itemId)}</span></div>
-          <div class="sub-row__meta">${fmt(c.pool)} available in pool · supply ${fmt(c.item.totalSupply)} ${PRORATIONS[c.item.itemId] ? '· prorated' : '· uncommitted'}</div>
+          <div class="sub-row__meta">
+            ${fmt(Math.max(0, c.pool))} available ${PRORATIONS[c.item.itemId] ? 'after proration' : 'surplus'}${kind === 'approved' ? ` · ${ratioLabel(c.ratio)} · ${esc(basisLabel(c.rule.priceBasis))}${c.rule.note ? ` · ${esc(c.rule.note)}` : ''}` : ''}
+          </div>
+          <div class="sub-row__econ" data-econ="${kind}-${i}">${econLine(e)}</div>
         </div>
-        ${badge}
-        <input type="number" min="1" max="${Math.floor(c.pool)}" step="1" value="${suggested}" data-sub-qty="${i}" />
-        <button class="primary" data-sub-use="${i}">Use</button>
+        ${kind === 'approved' ? `<span class="sub-row__chips">${scopeChip(c.rule, c.scope)} <span class="chip plain">rank ${esc(c.rule.rank)}</span></span>` : `
+          <label class="field mini">Ratio <input type="number" min="0.01" step="0.005" value="1" data-ratio="${i}" /></label>
+          <label class="field mini">Bill at <select data-basis="${i}"><option value="Original">Ordered</option><option value="Substitute">Substitute</option></select></label>`}
+        <label class="field mini">Cases <input type="number" min="1" max="${Math.floor(Math.max(0, c.pool))}" step="1" value="${qty}" data-qty="${kind}-${i}" ${can ? '' : 'disabled'} /></label>
+        <button class="${kind === 'approved' ? 'primary' : ''}" data-use="${kind}-${i}" ${can ? '' : 'disabled'}>${kind === 'approved' ? 'Use' : 'Approve & use'}</button>
       </div>`;
-  }).join('')
-    : `<p class="muted">No other items in this buyer group have available inventory.</p>`;
+  };
 
-  const overlay = document.createElement('div');
-  overlay.className = 'overlay';
-  overlay.innerHTML = `
-    <div class="overlay__card">
-      <h3>Substitute for ${esc(item.name)}</h3>
-      <div class="overlay__sub">
-        ${esc(line.salesId)} / ${esc(line.lineNum)} · ${esc(line.customerName || line.customerId)} ·
-        short <strong>${fmt(shortfall)}</strong> of ${fmt(line.requestedQty)} requested
-      </div>
-      ${rows}
-      <div class="row" style="margin:1.1rem 0 0">
-        <button data-sub-cancel>Cancel</button>
-      </div>
-    </div>`;
-  document.body.appendChild(overlay);
+  const neverNote = cust.substitutionPolicy === 'Never'
+    ? `<div class="notice bad">${esc(cust.name)} never accepts substitutes${cust.substitutionNote ? ` — ${esc(cust.substitutionNote.replace(/\.$/, ''))}` : ''}. If that has changed, update the policy on the <a href="substitutions.html?customer=${encodeURIComponent(cust.customerId)}">Substitutions</a> page.</div>` : '';
+  const approvedHtml = approved.length ? approved.map((c, i) => row(c, i, 'approved')).join('')
+    : cust.substitutionPolicy === 'Never' ? ''
+    : `<p class="muted">No approved substitute for ${esc(cust.name)}${cust.substitutionPolicy === 'CustomerOnly' ? ' — they only accept substitutes their own rules name' : ''}.</p>`;
+  const othersHtml = others.length ? `
+    <h4 class="picker__h">Other items in ${esc(DETAIL.commodity.name)} <span class="muted">— no rule for this customer</span></h4>
+    <p class="muted picker__help">“Approve & use” adds a ${esc(cust.name)} rule (pending until published), then stages the substitute.</p>
+    ${others.map((c, i) => row(c, i, 'other')).join('')}` : '';
 
-  const close = () => overlay.remove();
+  const { overlay, close } = openOverlay(`
+    <h3>Substitute for ${esc(item.name)}</h3>
+    <div class="overlay__sub">
+      ${esc(line.salesId)} / ${esc(line.lineNum)} · ${esc(cust.name)} ${policyChip(cust)} ·
+      short <strong>${fmt(shortfall)}</strong> of ${fmt(line.requestedQty)} requested
+    </div>
+    ${neverNote}
+    ${approved.length ? `<h4 class="picker__h">Approved for ${esc(cust.name)}</h4>` : ''}
+    ${approvedHtml}
+    ${othersHtml}
+    <div class="row" style="margin:1.1rem 0 0"><button data-close>Cancel</button></div>`, { wide: true });
+
+  const cand = key => { const [kind, i] = key.split('-'); return { kind, i, c: (kind === 'approved' ? approved : others)[Number(i)] }; };
+  const ratioOf = (kind, c, i) => (kind === 'other' ? Number(overlay.querySelector(`[data-ratio="${i}"]`).value) || 1 : c.ratio);
+  const basisOf = (kind, c, i) => (kind === 'other' ? overlay.querySelector(`[data-basis="${i}"]`).value : c.rule.priceBasis);
+  const repaintEcon = key => {
+    const { kind, c, i } = cand(key);
+    const qty = Number(overlay.querySelector(`[data-qty="${key}"]`).value) || 0;
+    const e = Subs.subEconomics({ fromItem: item, toItem: c.item, qty, ratio: ratioOf(kind, c, i), priceBasis: basisOf(kind, c, i) });
+    overlay.querySelector(`[data-econ="${key}"]`).innerHTML = econLine(e);
+  };
+  const onEdit = e => {
+    const t = e.target;
+    if (t.dataset.qty) repaintEcon(t.dataset.qty);
+    if (t.dataset.ratio !== undefined) {
+      const i = t.dataset.ratio, c = others[Number(i)];
+      overlay.querySelector(`[data-qty="other-${i}"]`).value =
+        Math.max(1, Math.min(Math.ceil(shortfall * (Number(t.value) || 1) - 1e-9), Math.floor(c.pool)));
+      repaintEcon(`other-${i}`);
+    }
+    if (t.dataset.basis !== undefined) repaintEcon(`other-${t.dataset.basis}`);
+  };
+  overlay.addEventListener('input', onEdit);
+  overlay.addEventListener('change', onEdit);
   overlay.addEventListener('click', e => {
-    if (e.target === overlay || e.target.closest('[data-sub-cancel]')) { close(); return; }
-    const use = e.target.closest('button[data-sub-use]');
+    const use = e.target.closest('button[data-use]');
     if (!use) return;
-    const c = candidates[Number(use.dataset.subUse)];
-    const qtyInput = overlay.querySelector(`input[data-sub-qty="${use.dataset.subUse}"]`);
-    let qty = Number(qtyInput.value);
+    const { kind, c, i } = cand(use.dataset.use);
+    const qty = Math.min(Math.floor(Number(overlay.querySelector(`[data-qty="${use.dataset.use}"]`).value)), Math.floor(c.pool));
     if (!Number.isFinite(qty) || qty <= 0) return;
-    qty = Math.min(qty, Math.floor(c.pool));
-    SUBSTITUTIONS.push({
-      salesId: line.salesId, lineNum: line.lineNum,
-      customerName: line.customerName || line.customerId,
-      fromItemId: itemId, fromName: item.name,
-      toItemId: c.item.itemId, toName: c.item.name,
-      qty, verified: !!c.rule,
-    });
+    if (kind === 'approved') {
+      stageSub({ line, itemId, cust, toItemId: c.toItemId, qty, ratio: c.ratio, rule: c.rule, scope: c.scope });
+    } else {
+      const ratio = ratioOf(kind, c, i);
+      const own = rules.filter(r => r.customerId === cust.customerId && r.fromItemId === itemId);
+      const rule = {
+        ruleId: newRuleId(), fromItemId: itemId, toItemId: c.toItemId, customerId: cust.customerId,
+        direction: 'OneWay', rank: own.length ? Math.max(...own.map(r => r.rank)) + 1 : 1,
+        qtyRatio: ratio, priceBasis: basisOf(kind, c, i),
+        validFrom: '', validTo: '', note: 'Approved in the proration planner',
+      };
+      draftRuleChange('Upsert', rule, DETAIL.substitutions || []);
+      stageSub({ line, itemId, cust, toItemId: c.toItemId, qty, ratio, rule: { ...rule, pending: true }, scope: 'Customer' });
+    }
     close();
     renderItems();
   });
 }
 
+// ---- Auto-substitute --------------------------------------------------------
+// One click: every short line (after proration and anything already staged)
+// is filled from that customer's approved substitutes, P1 customers first,
+// within what each substitute has left. Prorates first if nothing has been.
+
+let AUTO_NOTE = null;
+
+async function autoSubstituteAll() {
+  if (!Object.keys(PRORATIONS).length) await prorateAll();
+  const prorated = Object.values(PRORATIONS);
+  if (!prorated.length) return;
+  const shortLines = prorated.flatMap(p => p.lines.map(l => ({
+    salesId: l.salesId, lineNum: l.lineNum, itemId: p.itemId, customerId: l.customerId, shortfall: lineShortfall(l),
+  })));
+  const pools = Object.fromEntries(DETAIL.items.map(i => [i.itemId, poolFor(i)]));
+  const rules = detailRules();
+  const res = Subs.autoSubstitute({ shortLines, customers: detailCustomers(), rules, pools, asOf: DETAIL.asOf });
+
+  for (const s of res.staged) {
+    const line = PRORATIONS[s.fromItemId].lines.find(l => l.salesId === s.salesId && l.lineNum === s.lineNum);
+    const rule = rules.find(r => r.ruleId === s.ruleId);
+    stageSub({ line, itemId: s.fromItemId, cust: custFor(s.customerId), toItemId: s.toItemId, qty: s.qty, ratio: s.ratio, rule, scope: s.scope });
+  }
+  AUTO_NOTE = res;
+  renderItems();
+}
+
+function renderAutoNote() {
+  const el = document.getElementById('autosub-note');
+  if (!el) return;
+  const r = AUTO_NOTE;
+  if (!r) { el.innerHTML = ''; return; }
+  const names = reason => [...new Set(r.skipped.filter(s => s.reason === reason).map(s => custFor(s.line.customerId).name))];
+  const never = names('never'), noRule = names('no-rule'), stock = r.skipped.filter(s => s.reason === 'stock').length;
+  const bits = [];
+  if (never.length) bits.push(`never substitute: ${never.map(esc).join(', ')}`);
+  if (noRule.length) bits.push(`no applicable rule: ${noRule.map(esc).join(', ')}`);
+  if (stock) bits.push(`${stock} line${stock === 1 ? '' : 's'} ran out of substitute stock`);
+  el.innerHTML = `
+    <div class="autosub-note">
+      <div>
+        ${r.shortQty ? `<strong>Auto-substitute staged ${fmt(r.staged.length)} line${r.staged.length === 1 ? '' : 's'}</strong>
+        · covers ${fmt(r.coveredQty)} of ${fmt(r.shortQty)} short cases (${pct(r.coveredQty / r.shortQty)})` : '<strong>No short lines left to substitute.</strong>'}
+        ${bits.length ? `<div class="muted">Left short — ${bits.join(' · ')}</div>` : ''}
+      </div>
+      <button class="ghost" id="autosub-dismiss" aria-label="Dismiss">×</button>
+    </div>`;
+}
+
 function renderSubs() {
   const el = document.getElementById('subs');
   if (!el) return;
+  renderAutoNote();
   if (!SUBSTITUTIONS.length) { el.innerHTML = ''; return; }
+  const econ = SUBSTITUTIONS.map(econFor);
+  const priced = econ.filter(Boolean);
+  const tot = priced.reduce((t, e) => ({ revenue: t.revenue + e.revenue, margin: t.margin + e.margin, base: t.base + e.baselineMargin, baseRev: t.baseRev + e.baselineRevenue }),
+    { revenue: 0, margin: 0, base: 0, baseRev: 0 });
+  const pendingRules = new Set(SUBSTITUTIONS.filter(s => s.pending).map(s => s.ruleId)).size;
   el.innerHTML = `
     <div class="item-card">
       <header>
         <div>
           <h3>Staged substitutions</h3>
-          <div class="meta">Sent as a separate <code>rsmSalesSubstituteAcceleratorMessage</code> batch on approval.</div>
+          <div class="meta">Sent as an <code>rsmSalesSubstituteAcceleratorMessage</code> batch on approval${pendingRules ? `, after the ${pendingRules} pending customer rule${pendingRules === 1 ? '' : 's'} it relies on` : ''}. D365 reduces each ordered line and adds the substitute line.</div>
         </div>
+        <div class="item-card__actions"><button class="ghost" data-unsub-all>Clear all</button></div>
       </header>
       <table class="grid">
-        <thead><tr><th>SO / Line</th><th>Customer</th><th>Original</th><th>Substitute</th><th class="num">Qty</th><th>Rule</th><th></th></tr></thead>
+        <thead><tr><th>SO / Line</th><th>Customer</th><th>Ordered</th><th>Substitute</th><th class="num">Cases</th><th class="num">Covers</th><th>Rule</th><th>Bill at</th><th class="num">Revenue</th><th class="num">Margin</th><th></th></tr></thead>
         <tbody>
           ${SUBSTITUTIONS.map((s, i) => `
             <tr>
-              <td>${esc(s.salesId)} / ${esc(s.lineNum)}</td>
+              <td class="nowrap">${esc(s.salesId)} / ${esc(s.lineNum)}</td>
               <td>${esc(s.customerName)}</td>
-              <td>${esc(s.fromName)} <span class="muted">${esc(s.fromItemId)}</span></td>
-              <td>${esc(s.toName)} <span class="muted">${esc(s.toItemId)}</span></td>
+              <td title="${esc(s.fromItemId)}">${esc(s.fromName)}</td>
+              <td title="${esc(s.toItemId)}">${esc(s.toName)}</td>
               <td class="num">${fmt(s.qty)}</td>
-              <td>${s.verified ? '<span class="chip OK">rule</span>' : '<span class="chip plain">unverified</span>'}</td>
+              <td class="num">${fmt(s.covered)}</td>
+              <td>${scopeChip(s.ruleId ? { ruleId: s.ruleId, pending: s.pending, customerId: s.scope === 'Customer' ? s.customerId : '' } : null, s.scope)}</td>
+              <td class="nowrap">${s.priceBasis === 'Substitute' ? 'Substitute' : 'Ordered item'}</td>
+              <td class="num">${money(econ[i]?.revenue)}</td>
+              <td class="num nowrap">${marginCell(econ[i])}</td>
               <td><button class="ghost" data-unsub="${i}">Remove</button></td>
             </tr>`).join('')}
         </tbody>
+        <tfoot><tr>
+          <th colspan="4">${fmt(SUBSTITUTIONS.length)} substitution${SUBSTITUTIONS.length === 1 ? '' : 's'}</th>
+          <th class="num">${fmt(SUBSTITUTIONS.reduce((t, s) => t + s.qty, 0))}</th>
+          <th class="num">${fmt(SUBSTITUTIONS.reduce((t, s) => t + s.covered, 0))}</th>
+          <th colspan="2"></th>
+          <th class="num">${priced.length ? money(tot.revenue) : '—'}</th>
+          <th class="num">${priced.length ? marginCell({ marginPct: tot.revenue ? tot.margin / tot.revenue : 0, baselineMargin: tot.base, baselineRevenue: tot.baseRev }) : '—'}</th>
+          <th></th>
+        </tr></tfoot>
       </table>
     </div>`;
 }
@@ -701,7 +894,8 @@ function updateSummary() {
   const requested = prorated.reduce((s, p) => s + p.totalRequested, 0);
 
   const summary = document.getElementById('pp-summary');
-  const subNote = SUBSTITUTIONS.length ? ` · ${SUBSTITUTIONS.length} substitution(s) staged` : '';
+  const covered = SUBSTITUTIONS.reduce((t, s) => t + (Number(s.covered) || 0), 0);
+  const subNote = SUBSTITUTIONS.length ? ` · ${SUBSTITUTIONS.length} substitution(s) covering ${fmt(covered)}` : '';
   summary.textContent = prorated.length
     ? `${prorated.length} of ${DETAIL.items.length} items prorated · ${fmt(allocated)} of ${fmt(requested)} allocated${subNote}`
     : '';
@@ -730,6 +924,8 @@ async function approveBatch() {
       remainingOriginalQty: Number(line?.allocatedQty) || 0,
     };
   });
+  const drafts = loadSubDrafts();
+  const draftN = subDraftCount(drafts);
 
   if (lines.length === 0 && subs.length === 0) { alert('Nothing to send.'); return; }
 
@@ -738,29 +934,32 @@ async function approveBatch() {
   if (over.length && !confirm(
     `${over.length} item(s) are over-allocated (red). Send anyway?`)) return;
 
-  const unverified = SUBSTITUTIONS.filter(s => !s.verified).length;
-  if (unverified && !confirm(
-    `${unverified} substitution(s) have no whitelist rule (unverified) — D365 will reject them unless a rule exists. Send anyway?`)) return;
+  // Substitutions that rely on a rule approved here need that rule in D365
+  // first, or RSMSubstitutionConsumer rejects them ("No active substitution rule").
+  const needsRules = SUBSTITUTIONS.some(s => s.pending);
+  if (draftN && !confirm(
+    `${draftN} unpublished substitution rule/policy change(s) go to D365 first` +
+    `${needsRules ? ' — staged substitutions depend on them' : ''}. Continue?`)) return;
 
   const btn = document.getElementById('pp-approve');
   btn.disabled = true;
   const original = btn.textContent;
   btn.textContent = 'Sending…';
 
+  const results = [];
   try {
-    const sent = [];
-    if (lines.length) {
-      const r = await jpost('/api/prorate/send', { lines });
-      sent.push(`proration ${String(r.batchId).slice(0, 8)} (${r.recordCount} lines)`);
+    if (draftN) {
+      const r = await publishSubDrafts();
+      results.push({ result: r });
+      if (!r.ok) throw Object.assign(new Error(r.error || 'Rule publish failed'), { partial: true });
     }
-    if (subs.length) {
-      const r = await jpost('/api/substitute/send', { substitutions: subs });
-      sent.push(`substitution ${String(r.batchId).slice(0, 8)} (${r.recordCount} subs)`);
-    }
-    alert(`Sent to D365 queue 'rsmSalesProrateAccelerator':\n  ${sent.join('\n  ')}`);
-    location.href = 'index.html';
+    if (lines.length) results.push({ result: await jpost('/api/prorate/send', { lines, strategy: currentStrategy().strategy, commodityId: DETAIL.commodity.id }) });
+    if (subs.length) results.push({ result: await jpost('/api/substitute/send', { substitutions: subs }) });
+    PRORATIONS = {}; SUBSTITUTIONS = []; AUTO_NOTE = null;
+    showSendResult(results, { doneHref: 'index.html#batches', doneLabel: 'Back to overview' });
   } catch (err) {
-    alert(`Send failed: ${err.message}`);
+    if (results.length) showSendResult(results, { title: 'Sent with errors' });
+    else alert(`Send failed: ${err.message}`);
   } finally {
     btn.disabled = false;
     btn.textContent = original;

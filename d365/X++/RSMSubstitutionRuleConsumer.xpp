@@ -1,0 +1,133 @@
+// File: RSMSubstitutionRuleConsumer.xpp
+// Model:  RSM_SalesProration
+// Purpose: Invoked by the message processor for queue
+//          `rsmSalesProrateAccelerator`, message type
+//          `rsmSalesSubstitutionRuleMessage`. Applies substitution master-data
+//          changes made on the web app's Substitutions page (or approved for a
+//          customer in the planner's picker):
+//            · Rules            upsert / delete RSMItemSubstitution rows
+//            · CustomerPolicies set CustTable.RSMSubstitutionPolicy + note
+//
+// The app publishes this message BEFORE any substitution batch that relies on
+// a rule approved in the same session, so RSMSubstitutionConsumer finds the
+// rule when its batch arrives (same queue, processed in order).
+//
+// _messageContent (RSMSubstitutionRuleBatchContract):
+//   { "BatchId": "…",
+//     "Rules": [{ "Action": "Upsert"|"Delete", "RuleId", "FromItemId", "ToItemId",
+//                 "CustAccount", "Direction", "Rank", "QtyRatio",
+//                 "PriceBasis": "OriginalItemPrice"|"SubstituteItemPrice",
+//                 "ValidFrom", "ValidTo" }],
+//     "CustomerPolicies": [{ "CustAccount", "SubstitutionPolicy": "Standard"|"CustomerOnly"|"Never", "Note" }] }
+//
+// Security: the publishing endpoint requires Proration.Admin; on the D365
+// side the integration user needs RSMItemSubstitutionMaintain.
+// Idempotency: BatchId unique-indexed in RSMProrationAuditLog, same as the
+// other consumers. Upserts are keyed on RuleId, falling back to the
+// (FromItemId, ToItemId, CustAccount) unique index.
+
+public class RSMSubstitutionRuleConsumer
+{
+    public ProrationApplied apply(RSMSubstitutionRuleBatchContract _batch)
+    {
+        if (RSMProrationAuditLog::existsBatch(_batch.parmBatchId()))
+        {
+            return RSMProrationEventBuilder::alreadyApplied(_batch.parmBatchId());
+        }
+
+        List results = new List(Types::Class);
+
+        ttsbegin;
+
+        RSMProrationAuditLog audit;
+        audit.BatchId     = _batch.parmBatchId();
+        audit.ReceivedUtc = DateTimeUtil::utcNow();
+        audit.insert();
+
+        // 1. Rules
+        ListEnumerator re = _batch.parmRules().getEnumerator();
+        while (re.moveNext())
+        {
+            RSMSubstitutionRuleRecordContract rec = re.current();
+            RSMItemSubstitution sub = RSMSubstitutionRuleConsumer::findForUpdate(rec);
+
+            if (rec.parmAction() == 'Delete')
+            {
+                if (sub) { sub.delete(); }
+                results.addEnd(RSMProrationEventBuilder::ruleApplied(rec.parmRuleId(), 'Deleted'));
+                continue;
+            }
+
+            if (!InventTable::exist(rec.parmFromItemId()) || !InventTable::exist(rec.parmToItemId()))
+            {
+                results.addEnd(RSMProrationEventBuilder::ruleFailed(rec.parmRuleId(), 'Unknown item'));
+                continue;
+            }
+            if (rec.parmCustAccount() && !CustTable::exist(rec.parmCustAccount()))
+            {
+                results.addEnd(RSMProrationEventBuilder::ruleFailed(rec.parmRuleId(), 'Unknown customer'));
+                continue;
+            }
+
+            boolean isNew = !sub.RecId;
+            sub.RuleId      = rec.parmRuleId();
+            sub.FromItemId  = rec.parmFromItemId();
+            sub.ToItemId    = rec.parmToItemId();
+            sub.CustAccount = rec.parmCustAccount();
+            sub.Direction   = symbol2Enum(enumNum(RSMSubstitutionDirection), rec.parmDirection());
+            sub.Rank        = rec.parmRank() ? rec.parmRank() : 1;
+            sub.QtyRatio    = rec.parmQtyRatio() > 0 ? rec.parmQtyRatio() : 1.0;
+            sub.PriceBasis  = symbol2Enum(enumNum(RSMSubstitutionPriceBasis), rec.parmPriceBasis());
+            sub.ValidFrom   = rec.parmValidFrom();
+            sub.ValidTo     = rec.parmValidTo();
+
+            if (!sub.validateWrite())
+            {
+                results.addEnd(RSMProrationEventBuilder::ruleFailed(rec.parmRuleId(), 'Validation failed'));
+                continue;
+            }
+            if (isNew) { sub.insert(); } else { sub.update(); }
+            results.addEnd(RSMProrationEventBuilder::ruleApplied(rec.parmRuleId(), isNew ? 'Created' : 'Updated'));
+        }
+
+        // 2. Customer policies
+        ListEnumerator pe = _batch.parmCustomerPolicies().getEnumerator();
+        while (pe.moveNext())
+        {
+            RSMSubstitutionPolicyRecordContract pol = pe.current();
+            CustTable cust = CustTable::find(pol.parmCustAccount(), true);
+            if (!cust)
+            {
+                results.addEnd(RSMProrationEventBuilder::ruleFailed(pol.parmCustAccount(), 'Unknown customer'));
+                continue;
+            }
+            cust.RSMSubstitutionPolicy = symbol2Enum(enumNum(RSMSubstitutionPolicy), pol.parmSubstitutionPolicy());
+            cust.RSMSubstitutionNote   = pol.parmNote();
+            cust.update();
+            results.addEnd(RSMProrationEventBuilder::ruleApplied(pol.parmCustAccount(), 'Policy set'));
+        }
+
+        ttscommit;
+
+        return RSMProrationEventBuilder::batchApplied(_batch.parmBatchId(), results);
+    }
+
+    /// <summary>Existing row for an upsert/delete: by RuleId, else by the (From, To, Customer) key.</summary>
+    private static RSMItemSubstitution findForUpdate(RSMSubstitutionRuleRecordContract _rec)
+    {
+        RSMItemSubstitution sub;
+
+        if (_rec.parmRuleId())
+        {
+            select firstonly forupdate sub where sub.RuleId == _rec.parmRuleId();
+        }
+        if (!sub)
+        {
+            select firstonly forupdate sub
+                where sub.FromItemId  == _rec.parmFromItemId()
+                   && sub.ToItemId    == _rec.parmToItemId()
+                   && sub.CustAccount == _rec.parmCustAccount();
+        }
+        return sub;
+    }
+}

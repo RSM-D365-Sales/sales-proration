@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Bell pepper">
+  <path d="M32 20c-5-3-13-3-17 3-5 8-3 21 2 29 4 6 10 8 15 5 5 3 11 1 15-5 5-8 7-21 2-29-4-6-12-6-17-3Z" fill="#e8402f"/>
+  <path d="M32 20c3 6 4 18 0 37 5 3 11 1 15-5 5-8 7-21 2-29-4-6-12-6-17-3Z" fill="#c42f22" opacity=".55"/>
+  <ellipse cx="22" cy="32" rx="3.5" ry="7" fill="#f4897d" opacity=".55"/>
+  <path d="M27 21c0-4 2-6 5-6s5 2 5 6c-3-1.5-7-1.5-10 0Z" fill="#3e8f3a"/>
+  <path d="M31 16c0-4 1-7 4-9 1.5-1 3 .5 2 1.8-2 2-2.6 4.2-2.6 7.2Z" fill="#2f7a2c"/>
+</svg>

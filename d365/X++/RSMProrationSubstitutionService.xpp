@@ -13,8 +13,11 @@
 public class RSMProrationSubstitutionService
 {
     /// <summary>
-    /// All active substitution rules, optionally scoped to one commodity
-    /// (returns rules where either side belongs to the commodity).
+    /// Substitution rules, optionally scoped to one commodity (returns rules
+    /// where either side belongs to the commodity). Expired rules are left
+    /// out; scheduled ones (ValidFrom in the future) are included so the
+    /// app's rules page can show them. The app and RSMSubstitutionConsumer
+    /// both check the validity window before using a rule.
     /// </summary>
     [SysEntryPointAttribute]
     public List getSubstitutions(str _commodityId = '')
@@ -25,8 +28,7 @@ public class RSMProrationSubstitutionService
 
         while select sub
             order by sub.FromItemId, sub.Rank
-            where (!sub.ValidFrom || sub.ValidFrom <= today)
-               && (!sub.ValidTo   || sub.ValidTo   >= today)
+            where (!sub.ValidTo || sub.ValidTo >= today)
         {
             if (_commodityId
                 && !RSMProrationSubstitutionService::itemInCommodity(sub.FromItemId, _commodityId)
@@ -42,6 +44,11 @@ public class RSMProrationSubstitutionService
             c.parmRank(sub.Rank);
             c.parmQtyRatio(sub.QtyRatio ? sub.QtyRatio : 1.0);
             c.parmCustAccount(sub.CustAccount);
+            c.parmRuleId(sub.RuleId);
+            c.parmPriceBasis(enum2Symbol(enumNum(RSMSubstitutionPriceBasis), sub.PriceBasis));
+            c.parmValidFrom(sub.ValidFrom);
+            c.parmValidTo(sub.ValidTo);
+            c.parmNote(sub.Note);
             result.addEnd(c);
         }
         return result;

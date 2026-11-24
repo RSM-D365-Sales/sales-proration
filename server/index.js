@@ -101,6 +101,11 @@ app.get('/api/customers', route(async (req, res) => {
   res.json(await portal.listCustomers());
 }));
 
+// Substitution rules + customer policies (the Substitutions page).
+app.get('/api/substitutions', route(async (req, res) => {
+  res.json(await portal.substitutionBook());
+}));
+
 // ---- Proration --------------------------------------------------------------
 
 /**
@@ -160,6 +165,14 @@ app.post('/api/prorate/send', limited(), route(async (req, res) => {
 // (rsmSalesSubstituteAcceleratorMessage), same queue, own D365 consumer.
 app.post('/api/substitute/send', limited(), route(async (req, res) => {
   const result = await portal.sendSubstitutions((req.body || {}).substitutions);
+  res.status(result.ok ? 202 : 502).json(result);
+}));
+
+// Substitution rule + customer policy maintenance — master data, so admin
+// only (enforced here, not just hidden in the UI). Own message type
+// (rsmSalesSubstitutionRuleMessage), same queue.
+app.post('/api/substitutions/publish', requireRole(ROLES.ADMIN), limited(), route(async (req, res) => {
+  const result = await portal.sendRuleChanges(req.body || {});
   res.status(result.ok ? 202 : 502).json(result);
 }));
 

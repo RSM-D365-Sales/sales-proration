@@ -59,6 +59,60 @@ Click **Approve & Send to D365** — the batch is written to
 `.outbox/d365-proration-inbound.log.jsonl` (the Service Bus stand-in; outbound publish is
 still a local stub).
 
+## Customer-based substitutions
+
+After proration, a short line can be filled with a different item, **per customer**:
+
+- **Rules** (`RSMItemSubstitution`): ordered item → substitute, qty ratio, rank, one-way or
+  both ways, valid-from/to, and **bill at** the ordered item's price or the substitute's.
+  A rule with no customer applies to everyone; a customer's own rule is offered first.
+- **Customer policy** (`CustTable.RSMSubstitutionPolicy`): *Standard* (all-customer rules +
+  their own), *Customer rules only*, or *Never substitute*, with a note planners see.
+- **Planner** (commodity page): *Auto-substitute* fills every short line from that customer's
+  approved substitutes, P1 first, within each substitute's remaining stock; *Sub…* opens a picker
+  with margin preview, and can approve a new customer rule on the spot. The staged list shows
+  revenue and margin against the ordered item.
+- **Substitutions page**: customer view ("what does Great Lakes accept instead of …"), rule
+  maintenance, and policies. Edits are drafts until **Publish to D365** (Proration.Admin).
+
+On approval the app sends, in order, on queue `rsmSalesProrateAccelerator`:
+`rsmSalesSubstitutionRuleMessage` (pending rules/policies → `RSMSubstitutionRuleConsumer`),
+`rsmSalesProrateAcceleratorMessage` (allocations), `rsmSalesSubstituteAcceleratorMessage`
+(order surgery → `RSMSubstitutionConsumer`, which re-checks policy + rule and prices the new
+line per the rule's price basis). Rule logic lives in
+[public/js/shared/subs.js](public/js/shared/subs.js), shared by browser, server and tests.
+
+## Static scenario builds (Cloudflare Pages)
+
+A scenario is a seeded data set + brand that builds to a self-contained static site — no API
+server, no sign-in. The shared modules in `public/js/shared/` (normalizer, proration, portal
+read logic, message builders, substitution engine) run in the browser via
+[public/js/static-api.js](public/js/static-api.js), so the pages answer exactly as Express /
+Azure Functions do. "Send to D365" builds the real SysMessageService envelope and records it in
+the browser's batch history (viewable via **Payload**) — nothing is transmitted.
+
+| Scenario | Data + brand | Output | Pages project |
+|---|---|---|---|
+| `sunset` | [scenarios/sunset/](scenarios/sunset/) — SUNSET® (Mastronardi Produce) greenhouse peppers, tomatoes, cucumbers, WOW™ berries; items/prices match the pricing dashboard's SUNSET master | `dist-sunset/` | `greenhouse-sales-proration` |
+
+```bash
+npm run seed:sunset      # regenerate scenarios/sunset/data/* (seeded; prints a reconciliation)
+npm run build:sunset     # → dist-sunset/ (previous build kept as dist-sunset.prev)
+npm run preview:sunset   # http://localhost:5180 — Cloudflare-style clean URLs + CSP
+npm run deploy:sunset    # build + wrangler pages deploy (needs CLOUDFLARE_API_TOKEN / _ACCOUNT_ID)
+```
+
+Dates re-anchor to the viewer's today at load (`rebaseDates` in `scenario.json`), so the
+deployed demo never shows stale ship dates. Demo state (sent batches, published rules) lives in
+the browser's localStorage; open any page with `?reset=1` to start clean. Every customer in the
+SUNSET data is fictional; Mastronardi appears only as the tenant. The wordmark is typeset text
+beside a generic sun glyph — swap in official artwork in
+`scenarios/sunset/public/img/brand/` if supplied.
+
+To run the same scenario through the local Express server instead:
+`$env:D365_SNAPSHOT_FILE = 'scenarios/sunset/data/snapshot.json'; npm start` (PowerShell) and
+set `theme` to `sunset` under Setup → Branding.
+
 ## Deploy: GitHub Pages + Azure Functions + Entra ID
 
 The portal splits into a **static front-end** (GitHub Pages, custom domain) and a

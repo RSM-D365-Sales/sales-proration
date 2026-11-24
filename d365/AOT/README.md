@@ -9,8 +9,11 @@ into the model's metadata folders and fix up any boilerplate VS expects.
 |---|---|---|
 | `RSMSubstitutionDirection` | Enum | One way (From → To) vs Bidirectional |
 | `RSMSubstitutionRank` | EDT (int) | Preference order, 1 first |
+| `RSMSubstitutionPriceBasis` | Enum | Bill the substitute at the ordered item's price or its own |
+| `RSMSubstitutionPolicy` | Enum | Customer policy: Standard / Customer rules only / Never substitute |
+| `CustTable.RSM_SalesProration` | Table extension | `RSMSubstitutionPolicy` + `RSMSubstitutionNote` on the customer |
 | `RSMSubstitutionQtyRatio` | EDT (real) | Pack-size conversion: substitute units per 1 original unit |
-| `RSMItemSubstitution` | Table | The whitelist: From/To item, direction, rank, ratio, optional customer scope, validity dates. Unique on (From, To, Customer). Includes `findActive()` / `activeSubstitutesFor()` helpers and `validateWrite()` guards. |
+| `RSMItemSubstitution` | Table | The whitelist: From/To item, direction, rank, ratio, optional customer scope, validity dates, price basis, rule id, note. Unique on (From, To, Customer). Includes `findActive()` (customer row wins), `findForCustomer()` (honours the customer's policy and two-way rules), `ratioFrom()`, `activeSubstitutesFor()` and `validateWrite()` guards. |
 | `RSMItemSubstitution` | Form | Simple List grid with quick filter |
 | `RSMItemSubstitution` | Display menu item | Opens the form |
 | `ProductInformationManagement.RSM_SalesProration` | Menu extension | Surfaces it under Product information management > Setup |

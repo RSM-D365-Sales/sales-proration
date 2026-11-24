@@ -72,6 +72,7 @@ public class RSMProrationDemandContract
 [DataContractAttribute]
 public class RSMProrationCustomerContract
 {
+    str     substitutionPolicy; str substitutionNote;
     str     customerId; str name;
     int     priority;
     boolean isDistributionCenter;
@@ -87,6 +88,9 @@ public class RSMProrationCustomerContract
     [DataMemberAttribute] public str     parmParentCustomerId    (str _v = parentCustomerId) { parentCustomerId = _v; return parentCustomerId; }
     [DataMemberAttribute] public str     parmShipToCity          (str _v = shipToCity) { shipToCity = _v; return shipToCity; }
     [DataMemberAttribute] public str     parmShipToState         (str _v = shipToState){ shipToState = _v; return shipToState; }
+    // CustTable.RSMSubstitutionPolicy (Standard | CustomerOnly | Never) + note
+    [DataMemberAttribute] public str     parmSubstitutionPolicy  (str _v = substitutionPolicy) { substitutionPolicy = _v; return substitutionPolicy; }
+    [DataMemberAttribute] public str     parmSubstitutionNote    (str _v = substitutionNote)   { substitutionNote = _v; return substitutionNote; }
     [DataMemberAttribute] public decimal parmAvgFillRate4w       (decimal _v = avgFillRate4w) { avgFillRate4w = _v; return avgFillRate4w; }
     [DataMemberAttribute] public List    parmFillRateHistory     (List _v = fillRateHistory)  { fillRateHistory = _v; return fillRateHistory; }
 }
@@ -104,7 +108,16 @@ public class RSMProrationSubstitutionContract
     int     rank;
     decimal qtyRatio;           // substitute units per 1 original unit
     str     custAccount;        // blank = all customers
+    str     ruleId;
+    str     priceBasis;         // OriginalItemPrice | SubstituteItemPrice
+    date    validFrom; date validTo;
+    str     note;
 
+    [DataMemberAttribute] public str     parmRuleId     (str _v = ruleId)      { ruleId = _v; return ruleId; }
+    [DataMemberAttribute] public str     parmPriceBasis (str _v = priceBasis)  { priceBasis = _v; return priceBasis; }
+    [DataMemberAttribute] public date    parmValidFrom  (date _v = validFrom)  { validFrom = _v; return validFrom; }
+    [DataMemberAttribute] public date    parmValidTo    (date _v = validTo)    { validTo = _v; return validTo; }
+    [DataMemberAttribute] public str     parmNote       (str _v = note)        { note = _v; return note; }
     [DataMemberAttribute] public str     parmFromItemId (str _v = fromItemId)  { fromItemId = _v; return fromItemId; }
     [DataMemberAttribute] public str     parmToItemId   (str _v = toItemId)    { toItemId = _v; return toItemId; }
     [DataMemberAttribute] public str     parmDirection  (str _v = direction)   { direction = _v; return direction; }
@@ -222,4 +235,63 @@ public class RSMSubstitutionRecordContract
 
     [DataMemberAttribute('RemainingOriginalQty')]
     public decimal parmRemainingOriginalQty(decimal _v = remainingOriginalQty) { remainingOriginalQty = _v; return remainingOriginalQty; }
+}
+
+// -----------------------------------------------------------------------------
+// Inbound: substitution rule + customer policy maintenance
+// (message type rsmSalesSubstitutionRuleMessage, RSMSubstitutionRuleConsumer)
+//   { "BatchId": "…", "Rules": [ RSMSubstitutionRuleRecordContract … ],
+//     "CustomerPolicies": [ RSMSubstitutionPolicyRecordContract … ] }
+// -----------------------------------------------------------------------------
+[DataContractAttribute]
+public class RSMSubstitutionRuleBatchContract
+{
+    str  batchId;
+    List rules;
+    List customerPolicies;
+
+    [DataMemberAttribute('BatchId')]
+    public str parmBatchId(str _v = batchId) { batchId = _v; return batchId; }
+
+    [DataMemberAttribute('Rules'),
+     DataCollectionAttribute(Types::Class, classStr(RSMSubstitutionRuleRecordContract))]
+    public List parmRules(List _v = rules) { rules = _v; return rules ? rules : new List(Types::Class); }
+
+    [DataMemberAttribute('CustomerPolicies'),
+     DataCollectionAttribute(Types::Class, classStr(RSMSubstitutionPolicyRecordContract))]
+    public List parmCustomerPolicies(List _v = customerPolicies) { customerPolicies = _v; return customerPolicies ? customerPolicies : new List(Types::Class); }
+
+    public static RSMSubstitutionRuleBatchContract fromJson(str _json)
+    {
+        return FormJsonSerializer::deserializeObject(classNum(RSMSubstitutionRuleBatchContract), _json);
+    }
+}
+
+[DataContractAttribute]
+public class RSMSubstitutionRuleRecordContract
+{
+    str action; str ruleId; str fromItemId; str toItemId; str custAccount;
+    str direction; int rank; decimal qtyRatio; str priceBasis; date validFrom; date validTo;
+
+    [DataMemberAttribute('Action')]      public str     parmAction     (str _v = action)       { action = _v; return action; }
+    [DataMemberAttribute('RuleId')]      public str     parmRuleId     (str _v = ruleId)       { ruleId = _v; return ruleId; }
+    [DataMemberAttribute('FromItemId')]  public str     parmFromItemId (str _v = fromItemId)   { fromItemId = _v; return fromItemId; }
+    [DataMemberAttribute('ToItemId')]    public str     parmToItemId   (str _v = toItemId)     { toItemId = _v; return toItemId; }
+    [DataMemberAttribute('CustAccount')] public str     parmCustAccount(str _v = custAccount)  { custAccount = _v; return custAccount; }
+    [DataMemberAttribute('Direction')]   public str     parmDirection  (str _v = direction)    { direction = _v; return direction; }
+    [DataMemberAttribute('Rank')]        public int     parmRank       (int _v = rank)         { rank = _v; return rank; }
+    [DataMemberAttribute('QtyRatio')]    public decimal parmQtyRatio   (decimal _v = qtyRatio) { qtyRatio = _v; return qtyRatio; }
+    [DataMemberAttribute('PriceBasis')]  public str     parmPriceBasis (str _v = priceBasis)   { priceBasis = _v; return priceBasis; }
+    [DataMemberAttribute('ValidFrom')]   public date    parmValidFrom  (date _v = validFrom)   { validFrom = _v; return validFrom; }
+    [DataMemberAttribute('ValidTo')]     public date    parmValidTo    (date _v = validTo)     { validTo = _v; return validTo; }
+}
+
+[DataContractAttribute]
+public class RSMSubstitutionPolicyRecordContract
+{
+    str custAccount; str substitutionPolicy; str note;
+
+    [DataMemberAttribute('CustAccount')]        public str parmCustAccount       (str _v = custAccount)        { custAccount = _v; return custAccount; }
+    [DataMemberAttribute('SubstitutionPolicy')] public str parmSubstitutionPolicy(str _v = substitutionPolicy) { substitutionPolicy = _v; return substitutionPolicy; }
+    [DataMemberAttribute('Note')]               public str parmNote              (str _v = note)               { note = _v; return note; }
 }

@@ -1,0 +1,1041 @@
+{
+  "asOf": "2026-11-24",
+  "commodities": [
+    {
+      "CommodityId": "PEP",
+      "Description": "Peppers",
+      "Blurb": "Sweet bell, snacking and specialty peppers"
+    },
+    {
+      "CommodityId": "TOM",
+      "Description": "Tomatoes",
+      "Blurb": "Greenhouse vine, beefsteak and snacking tomatoes"
+    },
+    {
+      "CommodityId": "CUC",
+      "Description": "Cucumbers",
+      "Blurb": "Mini and organic mini cucumbers"
+    },
+    {
+      "CommodityId": "BER",
+      "Description": "Berries",
+      "Blurb": "WOW™ Dreamberry greenhouse strawberries"
+    }
+  ],
+  "items": [
+    {
+      "ItemId": "SG-PEP-BELL",
+      "CommodityId": "PEP",
+      "name": "Sweet Bell Peppers",
+      "uom": "cs",
+      "Pack": "11 lb carton",
+      "ListPrice": 18.75,
+      "UnitCost": 13.4
+    },
+    {
+      "ItemId": "SG-PEP-BELL-3CT",
+      "CommodityId": "PEP",
+      "name": "Sweet Bell Peppers 3ct",
+      "uom": "cs",
+      "Pack": "12 × 3 ct",
+      "ListPrice": 30,
+      "UnitCost": 19.6
+    },
+    {
+      "ItemId": "SG-PEP-TWST-2LB",
+      "CommodityId": "PEP",
+      "name": "Sweet Twister™ Peppers 2 lb",
+      "uom": "cs",
+      "Pack": "6 × 2 lb",
+      "ListPrice": 28.8,
+      "UnitCost": 17.5
+    },
+    {
+      "ItemId": "SG-PEP-SHAZAM",
+      "CommodityId": "PEP",
+      "name": "SHAZAM!® Shishito Peppers",
+      "uom": "cs",
+      "Pack": "12 × 6 oz",
+      "ListPrice": 32.4,
+      "UnitCost": 19.5
+    },
+    {
+      "ItemId": "SG-TOM-BEEF",
+      "CommodityId": "TOM",
+      "name": "Beefsteak Tomatoes",
+      "uom": "cs",
+      "Pack": "15 lb carton",
+      "ListPrice": 21,
+      "UnitCost": 14.2
+    },
+    {
+      "ItemId": "SG-TOM-ROM-3LB",
+      "CommodityId": "TOM",
+      "name": "Romana Tomatoes 3 lb",
+      "uom": "cs",
+      "Pack": "8 × 3 lb",
+      "ListPrice": 22.5,
+      "UnitCost": 15.8
+    },
+    {
+      "ItemId": "SG-TOM-WW-2LB",
+      "CommodityId": "TOM",
+      "name": "Wild Wonders® Tomatoes 2 lb",
+      "uom": "cs",
+      "Pack": "6 × 2 lb",
+      "ListPrice": 36,
+      "UnitCost": 21.7
+    },
+    {
+      "ItemId": "SG-TOM-ANGEL",
+      "CommodityId": "TOM",
+      "name": "Angel Sweet® Tomatoes",
+      "uom": "cs",
+      "Pack": "12 × 10 oz",
+      "ListPrice": 29.6,
+      "UnitCost": 17.5
+    },
+    {
+      "ItemId": "SG-CUC-MINI",
+      "CommodityId": "CUC",
+      "name": "Mini Cucumbers",
+      "uom": "cs",
+      "Pack": "12 × 1 lb",
+      "ListPrice": 19.2,
+      "UnitCost": 13.4
+    },
+    {
+      "ItemId": "SG-CUC-MINI-ORG",
+      "CommodityId": "CUC",
+      "name": "Organic Mini Cucumbers",
+      "uom": "cs",
+      "Pack": "12 × 1 lb",
+      "ListPrice": 24,
+      "UnitCost": 17
+    },
+    {
+      "ItemId": "SG-CUC-ORG-6CT",
+      "CommodityId": "CUC",
+      "name": "Organic Mini Cucumber 6ct",
+      "uom": "cs",
+      "Pack": "12 × 6 ct",
+      "ListPrice": 27.6,
+      "UnitCost": 17
+    },
+    {
+      "ItemId": "SG-BER-WOW-10OZ",
+      "CommodityId": "BER",
+      "name": "WOW™ Dreamberry 10 oz",
+      "uom": "cs",
+      "Pack": "8 × 10 oz",
+      "ListPrice": 37,
+      "UnitCost": 22.9
+    },
+    {
+      "ItemId": "SG-BER-WOW-1LB",
+      "CommodityId": "BER",
+      "name": "WOW™ Dreamberry 1 lb",
+      "uom": "cs",
+      "Pack": "8 × 1 lb",
+      "ListPrice": 52,
+      "UnitCost": 33
+    }
+  ],
+  "customers": [
+    {
+      "substitutionPolicy": "Standard",
+      "substitutionNote": "",
+      "customerId": "C10001",
+      "name": "Great Lakes Grocers",
+      "priority": 1,
+      "segment": "Grocery",
+      "shipToCity": "Grand Rapids",
+      "shipToState": "MI"
+    },
+    {
+      "substitutionPolicy": "Standard",
+      "substitutionNote": "",
+      "customerId": "C10007",
+      "name": "Summit Produce Wholesale",
+      "priority": 1,
+      "segment": "Wholesale",
+      "shipToCity": "Toronto",
+      "shipToState": "ON"
+    },
+    {
+      "substitutionPolicy": "Standard",
+      "substitutionNote": "",
+      "customerId": "C10002",
+      "name": "Northwind Foods",
+      "priority": 2,
+      "segment": "Grocery",
+      "shipToCity": "Columbus",
+      "shipToState": "OH"
+    },
+    {
+      "substitutionPolicy": "CustomerOnly",
+      "substitutionNote": "Winter Tomato Program specifies the pack; only substitutes the contract names.",
+      "customerId": "C10012",
+      "name": "Keystone Foodservice",
+      "priority": 2,
+      "segment": "Foodservice",
+      "shipToCity": "Harrisburg",
+      "shipToState": "PA"
+    },
+    {
+      "substitutionPolicy": "CustomerOnly",
+      "substitutionNote": "Certified-organic shelf: organic-for-organic substitutes only.",
+      "customerId": "C10009",
+      "name": "Lakeside Natural Foods",
+      "priority": 2,
+      "segment": "Natural",
+      "shipToCity": "Ann Arbor",
+      "shipToState": "MI"
+    },
+    {
+      "substitutionPolicy": "Standard",
+      "substitutionNote": "",
+      "customerId": "C10003",
+      "name": "Harborline Markets",
+      "priority": 3,
+      "segment": "Grocery",
+      "shipToCity": "Cleveland",
+      "shipToState": "OH"
+    },
+    {
+      "substitutionPolicy": "Standard",
+      "substitutionNote": "",
+      "customerId": "C10006",
+      "name": "Riverbend Supermarkets",
+      "priority": 3,
+      "segment": "Grocery",
+      "shipToCity": "Pittsburgh",
+      "shipToState": "PA"
+    },
+    {
+      "substitutionPolicy": "Standard",
+      "substitutionNote": "",
+      "customerId": "C10005",
+      "name": "Maple Crest Food Markets",
+      "priority": 3,
+      "segment": "Grocery",
+      "shipToCity": "London",
+      "shipToState": "ON"
+    },
+    {
+      "substitutionPolicy": "Standard",
+      "substitutionNote": "",
+      "customerId": "C10011",
+      "name": "Midwest Foodservice Supply",
+      "priority": 3,
+      "segment": "Foodservice",
+      "shipToCity": "Fort Wayne",
+      "shipToState": "IN"
+    },
+    {
+      "substitutionPolicy": "Standard",
+      "substitutionNote": "",
+      "customerId": "C10014",
+      "name": "North Shore Provisions",
+      "priority": 3,
+      "segment": "Foodservice",
+      "shipToCity": "Evanston",
+      "shipToState": "IL"
+    },
+    {
+      "substitutionPolicy": "Standard",
+      "substitutionNote": "",
+      "customerId": "C10016",
+      "name": "Hudson Produce Terminal",
+      "priority": 3,
+      "segment": "Wholesale",
+      "shipToCity": "Albany",
+      "shipToState": "NY"
+    },
+    {
+      "substitutionPolicy": "Standard",
+      "substitutionNote": "",
+      "customerId": "C10008",
+      "name": "Valley Fresh Distributors",
+      "priority": 4,
+      "segment": "Wholesale",
+      "shipToCity": "Detroit",
+      "shipToState": "MI"
+    },
+    {
+      "substitutionPolicy": "Standard",
+      "substitutionNote": "",
+      "customerId": "C10021",
+      "name": "Fresh Bowl Kitchens",
+      "priority": 4,
+      "segment": "Foodservice",
+      "shipToCity": "Indianapolis",
+      "shipToState": "IN"
+    },
+    {
+      "substitutionPolicy": "Never",
+      "substitutionNote": "Specialty Menu Agreement: chef-specified product only.",
+      "customerId": "C10037",
+      "name": "Cedar Bluff Hospitality",
+      "priority": 4,
+      "segment": "Foodservice",
+      "shipToCity": "Traverse City",
+      "shipToState": "MI"
+    },
+    {
+      "substitutionPolicy": "Standard",
+      "substitutionNote": "",
+      "customerId": "C10038",
+      "name": "Windy City Salad Works",
+      "priority": 4,
+      "segment": "Foodservice",
+      "shipToCity": "Chicago",
+      "shipToState": "IL"
+    },
+    {
+      "substitutionPolicy": "Standard",
+      "substitutionNote": "",
+      "customerId": "C10010",
+      "name": "Green Cart Co-op",
+      "priority": 4,
+      "segment": "Natural",
+      "shipToCity": "Ottawa",
+      "shipToState": "ON"
+    },
+    {
+      "substitutionPolicy": "Standard",
+      "substitutionNote": "",
+      "customerId": "C10026",
+      "name": "Pantry Prime Meal Kits",
+      "priority": 5,
+      "segment": "E-commerce",
+      "shipToCity": "Indianapolis",
+      "shipToState": "IN"
+    },
+    {
+      "substitutionPolicy": "Never",
+      "substitutionNote": "Online listings are SKU-locked; shoppers receive exactly what they ordered.",
+      "customerId": "C10027",
+      "name": "DoorStep Grocer",
+      "priority": 5,
+      "segment": "E-commerce",
+      "shipToCity": "Chicago",
+      "shipToState": "IL"
+    }
+  ],
+  "Demand": [
+    {
+      "SalesId": "SO-61240",
+      "LineNum": 1,
+      "ItemId": "SG-PEP-BELL",
+      "CustAccount": "C10001",
+      "SiteId": "KGV",
+      "WarehouseId": "KGV-DC",
+      "RequestedQty": 600,
+      "RequestedShipDate": "2026-11-26"
+    },
+    {
+      "SalesId": "SO-61243",
+      "LineNum": 1,
+      "ItemId": "SG-PEP-BELL",
+      "CustAccount": "C10007",
+      "SiteId": "KGV",
+      "WarehouseId": "KGV-DC",
+      "RequestedQty": 480,
+      "RequestedShipDate": "2026-11-27"
+    },
+    {
+      "SalesId": "SO-61245",
+      "LineNum": 1,
+      "ItemId": "SG-PEP-BELL",
+      "CustAccount": "C10002",
+      "SiteId": "CWT",
+      "WarehouseId": "CWT-DC",
+      "RequestedQty": 400,
+      "RequestedShipDate": "2026-11-26"
+    },
+    {
+      "SalesId": "SO-61247",
+      "LineNum": 1,
+      "ItemId": "SG-PEP-BELL",
+      "CustAccount": "C10012",
+      "SiteId": "KGV",
+      "WarehouseId": "KGV-DC",
+      "RequestedQty": 360,
+      "RequestedShipDate": "2026-11-28"
+    },
+    {
+      "SalesId": "SO-61257",
+      "LineNum": 1,
+      "ItemId": "SG-PEP-BELL",
+      "CustAccount": "C10011",
+      "SiteId": "CWT",
+      "WarehouseId": "CWT-DC",
+      "RequestedQty": 300,
+      "RequestedShipDate": "2026-11-27"
+    },
+    {
+      "SalesId": "SO-61253",
+      "LineNum": 1,
+      "ItemId": "SG-PEP-BELL",
+      "CustAccount": "C10006",
+      "SiteId": "KGV",
+      "WarehouseId": "KGV-DC",
+      "RequestedQty": 300,
+      "RequestedShipDate": "2026-11-29"
+    },
+    {
+      "SalesId": "SO-61274",
+      "LineNum": 1,
+      "ItemId": "SG-PEP-BELL",
+      "CustAccount": "C10027",
+      "SiteId": "CWT",
+      "WarehouseId": "CWT-DC",
+      "RequestedQty": 160,
+      "RequestedShipDate": "2026-11-26"
+    },
+    {
+      "SalesId": "SO-61268",
+      "LineNum": 1,
+      "ItemId": "SG-PEP-BELL-3CT",
+      "CustAccount": "C10038",
+      "SiteId": "CWT",
+      "WarehouseId": "CWT-DC",
+      "RequestedQty": 180,
+      "RequestedShipDate": "2026-11-25"
+    },
+    {
+      "SalesId": "SO-61257",
+      "LineNum": 2,
+      "ItemId": "SG-PEP-BELL-3CT",
+      "CustAccount": "C10011",
+      "SiteId": "KGV",
+      "WarehouseId": "KGV-DC",
+      "RequestedQty": 260,
+      "RequestedShipDate": "2026-11-25"
+    },
+    {
+      "SalesId": "SO-61265",
+      "LineNum": 1,
+      "ItemId": "SG-PEP-BELL-3CT",
+      "CustAccount": "C10021",
+      "SiteId": "KGV",
+      "WarehouseId": "KGV-DC",
+      "RequestedQty": 220,
+      "RequestedShipDate": "2026-11-28"
+    },
+    {
+      "SalesId": "SO-61243",
+      "LineNum": 2,
+      "ItemId": "SG-PEP-BELL-3CT",
+      "CustAccount": "C10007",
+      "SiteId": "KGV",
+      "WarehouseId": "KGV-DC",
+      "RequestedQty": 240,
+      "RequestedShipDate": "2026-11-29"
+    },
+    {
+      "SalesId": "SO-61243",
+      "LineNum": 3,
+      "ItemId": "SG-PEP-TWST-2LB",
+      "CustAccount": "C10007",
+      "SiteId": "KGV",
+      "WarehouseId": "KGV-DC",
+      "RequestedQty": 220,
+      "RequestedShipDate": "2026-11-30"
+    },
+    {
+      "SalesId": "SO-61260",
+      "LineNum": 1,
+      "ItemId": "SG-PEP-TWST-2LB",
+      "CustAccount": "C10016",
+      "SiteId": "KGV",
+      "WarehouseId": "KGV-DC",
+      "RequestedQty": 100,
+      "RequestedShipDate": "2026-11-26"
+    },
+    {
+      "SalesId": "SO-61244",
+      "LineNum": 1,
+      "ItemId": "SG-PEP-TWST-2LB",
+      "CustAccount": "C10002",
+      "SiteId": "KGV",
+      "WarehouseId": "KGV-DC",
+      "RequestedQty": 100,
+      "RequestedShipDate": "2026-11-27"
+    },
+    {
+      "SalesId": "SO-61268",
+      "LineNum": 2,
+      "ItemId": "SG-PEP-SHAZAM",
+      "CustAccount": "C10038",
+      "SiteId": "CWT",
+      "WarehouseId": "CWT-DC",
+      "RequestedQty": 140,
+      "RequestedShipDate": "2026-12-01"
+    },
+    {
+      "SalesId": "SO-61249",
+      "LineNum": 1,
+      "ItemId": "SG-PEP-SHAZAM",
+      "CustAccount": "C10009",
+      "SiteId": "CWT",
+      "WarehouseId": "CWT-DC",
+      "RequestedQty": 90,
+      "RequestedShipDate": "2026-11-28"
+    },
+    {
+      "SalesId": "SO-61251",
+      "LineNum": 1,
+      "ItemId": "SG-PEP-SHAZAM",
+      "CustAccount": "C10003",
+      "SiteId": "KGV",
+      "WarehouseId": "KGV-DC",
+      "RequestedQty": 130,
+      "RequestedShipDate": "2026-11-25"
+    },
+    {
+      "SalesId": "SO-61246",
+      "LineNum": 1,
+      "ItemId": "SG-TOM-BEEF",
+      "CustAccount": "C10012",
+      "SiteId": "KGV",
+      "WarehouseId": "KGV-DC",
+      "RequestedQty": 500,
+      "RequestedShipDate": "2026-11-26"
+    },
+    {
+      "SalesId": "SO-61240",
+      "LineNum": 2,
+      "ItemId": "SG-TOM-BEEF",
+      "CustAccount": "C10001",
+      "SiteId": "KGV",
+      "WarehouseId": "KGV-DC",
+      "RequestedQty": 400,
+      "RequestedShipDate": "2026-11-27"
+    },
+    {
+      "SalesId": "SO-61259",
+      "LineNum": 1,
+      "ItemId": "SG-TOM-BEEF",
+      "CustAccount": "C10014",
+      "SiteId": "CWT",
+      "WarehouseId": "CWT-DC",
+      "RequestedQty": 300,
+      "RequestedShipDate": "2026-11-28"
+    },
+    {
+      "SalesId": "SO-61260",
+      "LineNum": 2,
+      "ItemId": "SG-TOM-BEEF",
+      "CustAccount": "C10016",
+      "SiteId": "KGV",
+      "WarehouseId": "KGV-DC",
+      "RequestedQty": 300,
+      "RequestedShipDate": "2026-11-27"
+    },
+    {
+      "SalesId": "SO-61248",
+      "LineNum": 1,
+      "ItemId": "SG-TOM-ROM-3LB",
+      "CustAccount": "C10009",
+      "SiteId": "CWT",
+      "WarehouseId": "CWT-DC",
+      "RequestedQty": 330,
+      "RequestedShipDate": "2026-11-30"
+    },
+    {
+      "SalesId": "SO-61260",
+      "LineNum": 3,
+      "ItemId": "SG-TOM-ROM-3LB",
+      "CustAccount": "C10016",
+      "SiteId": "CWT",
+      "WarehouseId": "CWT-DC",
+      "RequestedQty": 420,
+      "RequestedShipDate": "2026-12-01"
+    },
+    {
+      "SalesId": "SO-61244",
+      "LineNum": 2,
+      "ItemId": "SG-TOM-ROM-3LB",
+      "CustAccount": "C10002",
+      "SiteId": "KGV",
+      "WarehouseId": "KGV-DC",
+      "RequestedQty": 290,
+      "RequestedShipDate": "2026-11-26"
+    },
+    {
+      "SalesId": "SO-61242",
+      "LineNum": 1,
+      "ItemId": "SG-TOM-ROM-3LB",
+      "CustAccount": "C10007",
+      "SiteId": "KGV",
+      "WarehouseId": "KGV-DC",
+      "RequestedQty": 360,
+      "RequestedShipDate": "2026-11-30"
+    },
+    {
+      "SalesId": "SO-61271",
+      "LineNum": 1,
+      "ItemId": "SG-TOM-WW-2LB",
+      "CustAccount": "C10010",
+      "SiteId": "CWT",
+      "WarehouseId": "CWT-DC",
+      "RequestedQty": 180,
+      "RequestedShipDate": "2026-11-30"
+    },
+    {
+      "SalesId": "SO-61268",
+      "LineNum": 3,
+      "ItemId": "SG-TOM-WW-2LB",
+      "CustAccount": "C10038",
+      "SiteId": "KGV",
+      "WarehouseId": "KGV-DC",
+      "RequestedQty": 210,
+      "RequestedShipDate": "2026-11-26"
+    },
+    {
+      "SalesId": "SO-61252",
+      "LineNum": 1,
+      "ItemId": "SG-TOM-WW-2LB",
+      "CustAccount": "C10006",
+      "SiteId": "KGV",
+      "WarehouseId": "KGV-DC",
+      "RequestedQty": 110,
+      "RequestedShipDate": "2026-11-25"
+    },
+    {
+      "SalesId": "SO-61248",
+      "LineNum": 2,
+      "ItemId": "SG-TOM-ANGEL",
+      "CustAccount": "C10009",
+      "SiteId": "KGV",
+      "WarehouseId": "KGV-DC",
+      "RequestedQty": 310,
+      "RequestedShipDate": "2026-11-28"
+    },
+    {
+      "SalesId": "SO-61263",
+      "LineNum": 1,
+      "ItemId": "SG-TOM-ANGEL",
+      "CustAccount": "C10008",
+      "SiteId": "KGV",
+      "WarehouseId": "KGV-DC",
+      "RequestedQty": 160,
+      "RequestedShipDate": "2026-11-29"
+    },
+    {
+      "SalesId": "SO-61265",
+      "LineNum": 2,
+      "ItemId": "SG-TOM-ANGEL",
+      "CustAccount": "C10021",
+      "SiteId": "KGV",
+      "WarehouseId": "KGV-DC",
+      "RequestedQty": 170,
+      "RequestedShipDate": "2026-11-25"
+    },
+    {
+      "SalesId": "SO-61265",
+      "LineNum": 3,
+      "ItemId": "SG-CUC-MINI",
+      "CustAccount": "C10021",
+      "SiteId": "KGV",
+      "WarehouseId": "KGV-DC",
+      "RequestedQty": 420,
+      "RequestedShipDate": "2026-11-30"
+    },
+    {
+      "SalesId": "SO-61241",
+      "LineNum": 1,
+      "ItemId": "SG-CUC-MINI",
+      "CustAccount": "C10001",
+      "SiteId": "CWT",
+      "WarehouseId": "CWT-DC",
+      "RequestedQty": 470,
+      "RequestedShipDate": "2026-11-26"
+    },
+    {
+      "SalesId": "SO-61268",
+      "LineNum": 4,
+      "ItemId": "SG-CUC-MINI",
+      "CustAccount": "C10038",
+      "SiteId": "KGV",
+      "WarehouseId": "KGV-DC",
+      "RequestedQty": 330,
+      "RequestedShipDate": "2026-12-01"
+    },
+    {
+      "SalesId": "SO-61242",
+      "LineNum": 2,
+      "ItemId": "SG-CUC-MINI",
+      "CustAccount": "C10007",
+      "SiteId": "CWT",
+      "WarehouseId": "CWT-DC",
+      "RequestedQty": 340,
+      "RequestedShipDate": "2026-11-27"
+    },
+    {
+      "SalesId": "SO-61251",
+      "LineNum": 2,
+      "ItemId": "SG-CUC-MINI",
+      "CustAccount": "C10003",
+      "SiteId": "CWT",
+      "WarehouseId": "CWT-DC",
+      "RequestedQty": 440,
+      "RequestedShipDate": "2026-11-30"
+    },
+    {
+      "SalesId": "SO-61249",
+      "LineNum": 2,
+      "ItemId": "SG-CUC-MINI-ORG",
+      "CustAccount": "C10009",
+      "SiteId": "KGV",
+      "WarehouseId": "KGV-DC",
+      "RequestedQty": 300,
+      "RequestedShipDate": "2026-11-26"
+    },
+    {
+      "SalesId": "SO-61271",
+      "LineNum": 2,
+      "ItemId": "SG-CUC-MINI-ORG",
+      "CustAccount": "C10010",
+      "SiteId": "KGV",
+      "WarehouseId": "KGV-DC",
+      "RequestedQty": 220,
+      "RequestedShipDate": "2026-11-28"
+    },
+    {
+      "SalesId": "SO-61241",
+      "LineNum": 2,
+      "ItemId": "SG-CUC-MINI-ORG",
+      "CustAccount": "C10001",
+      "SiteId": "CWT",
+      "WarehouseId": "CWT-DC",
+      "RequestedQty": 180,
+      "RequestedShipDate": "2026-11-27"
+    },
+    {
+      "SalesId": "SO-61271",
+      "LineNum": 3,
+      "ItemId": "SG-CUC-ORG-6CT",
+      "CustAccount": "C10010",
+      "SiteId": "KGV",
+      "WarehouseId": "KGV-DC",
+      "RequestedQty": 200,
+      "RequestedShipDate": "2026-11-28"
+    },
+    {
+      "SalesId": "SO-61241",
+      "LineNum": 3,
+      "ItemId": "SG-CUC-ORG-6CT",
+      "CustAccount": "C10001",
+      "SiteId": "KGV",
+      "WarehouseId": "KGV-DC",
+      "RequestedQty": 150,
+      "RequestedShipDate": "2026-11-25"
+    },
+    {
+      "SalesId": "SO-61264",
+      "LineNum": 1,
+      "ItemId": "SG-CUC-ORG-6CT",
+      "CustAccount": "C10021",
+      "SiteId": "CWT",
+      "WarehouseId": "CWT-DC",
+      "RequestedQty": 250,
+      "RequestedShipDate": "2026-11-25"
+    },
+    {
+      "SalesId": "SO-61244",
+      "LineNum": 3,
+      "ItemId": "SG-BER-WOW-10OZ",
+      "CustAccount": "C10002",
+      "SiteId": "CWT",
+      "WarehouseId": "CWT-DC",
+      "RequestedQty": 360,
+      "RequestedShipDate": "2026-11-26"
+    },
+    {
+      "SalesId": "SO-61243",
+      "LineNum": 4,
+      "ItemId": "SG-BER-WOW-10OZ",
+      "CustAccount": "C10007",
+      "SiteId": "CWT",
+      "WarehouseId": "CWT-DC",
+      "RequestedQty": 300,
+      "RequestedShipDate": "2026-11-27"
+    },
+    {
+      "SalesId": "SO-61250",
+      "LineNum": 1,
+      "ItemId": "SG-BER-WOW-10OZ",
+      "CustAccount": "C10003",
+      "SiteId": "CWT",
+      "WarehouseId": "CWT-DC",
+      "RequestedQty": 240,
+      "RequestedShipDate": "2026-11-28"
+    },
+    {
+      "SalesId": "SO-61266",
+      "LineNum": 1,
+      "ItemId": "SG-BER-WOW-10OZ",
+      "CustAccount": "C10037",
+      "SiteId": "CWT",
+      "WarehouseId": "CWT-DC",
+      "RequestedQty": 160,
+      "RequestedShipDate": "2026-11-27"
+    },
+    {
+      "SalesId": "SO-61273",
+      "LineNum": 1,
+      "ItemId": "SG-BER-WOW-10OZ",
+      "CustAccount": "C10026",
+      "SiteId": "CWT",
+      "WarehouseId": "CWT-DC",
+      "RequestedQty": 140,
+      "RequestedShipDate": "2026-11-29"
+    },
+    {
+      "SalesId": "SO-61272",
+      "LineNum": 1,
+      "ItemId": "SG-BER-WOW-1LB",
+      "CustAccount": "C10026",
+      "SiteId": "CWT",
+      "WarehouseId": "CWT-DC",
+      "RequestedQty": 160,
+      "RequestedShipDate": "2026-11-30"
+    },
+    {
+      "SalesId": "SO-61256",
+      "LineNum": 1,
+      "ItemId": "SG-BER-WOW-1LB",
+      "CustAccount": "C10011",
+      "SiteId": "KGV",
+      "WarehouseId": "KGV-DC",
+      "RequestedQty": 140,
+      "RequestedShipDate": "2026-11-30"
+    }
+  ],
+  "Supply": [
+    {
+      "ItemId": "SG-PEP-BELL",
+      "SiteId": "KGV",
+      "WarehouseId": "KGV-DC",
+      "AvailableQty": 1400
+    },
+    {
+      "ItemId": "SG-PEP-BELL-3CT",
+      "SiteId": "KGV",
+      "WarehouseId": "KGV-DC",
+      "AvailableQty": 1400
+    },
+    {
+      "ItemId": "SG-PEP-TWST-2LB",
+      "SiteId": "CWT",
+      "WarehouseId": "CWT-DC",
+      "AvailableQty": 700
+    },
+    {
+      "ItemId": "SG-PEP-SHAZAM",
+      "SiteId": "CWT",
+      "WarehouseId": "CWT-DC",
+      "AvailableQty": 300
+    },
+    {
+      "ItemId": "SG-TOM-BEEF",
+      "SiteId": "KGV",
+      "WarehouseId": "KGV-DC",
+      "AvailableQty": 1180
+    },
+    {
+      "ItemId": "SG-TOM-ROM-3LB",
+      "SiteId": "KGV",
+      "WarehouseId": "KGV-DC",
+      "AvailableQty": 1560
+    },
+    {
+      "ItemId": "SG-TOM-WW-2LB",
+      "SiteId": "CWT",
+      "WarehouseId": "CWT-DC",
+      "AvailableQty": 520
+    },
+    {
+      "ItemId": "SG-TOM-ANGEL",
+      "SiteId": "CWT",
+      "WarehouseId": "CWT-DC",
+      "AvailableQty": 700
+    },
+    {
+      "ItemId": "SG-CUC-MINI",
+      "SiteId": "KGV",
+      "WarehouseId": "KGV-DC",
+      "AvailableQty": 1850
+    },
+    {
+      "ItemId": "SG-CUC-MINI-ORG",
+      "SiteId": "KGV",
+      "WarehouseId": "KGV-DC",
+      "AvailableQty": 900
+    },
+    {
+      "ItemId": "SG-CUC-ORG-6CT",
+      "SiteId": "CWT",
+      "WarehouseId": "CWT-DC",
+      "AvailableQty": 650
+    },
+    {
+      "ItemId": "SG-BER-WOW-10OZ",
+      "SiteId": "CWT",
+      "WarehouseId": "CWT-DC",
+      "AvailableQty": 860
+    },
+    {
+      "ItemId": "SG-BER-WOW-1LB",
+      "SiteId": "CWT",
+      "WarehouseId": "CWT-DC",
+      "AvailableQty": 700
+    }
+  ],
+  "substitutions": [
+    {
+      "Direction": "OneWay",
+      "Rank": 1,
+      "QtyRatio": 0.75,
+      "PriceBasis": "Original",
+      "CustAccount": "",
+      "ValidFrom": "",
+      "ValidTo": "",
+      "RuleId": "SUB-1001",
+      "FromItemId": "SG-PEP-BELL",
+      "ToItemId": "SG-PEP-BELL-3CT",
+      "Note": "22 peppers per carton ≈ 0.75 case of 12 × 3 ct"
+    },
+    {
+      "Direction": "OneWay",
+      "Rank": 1,
+      "QtyRatio": 1,
+      "PriceBasis": "Original",
+      "CustAccount": "C10001",
+      "ValidFrom": "",
+      "ValidTo": "",
+      "RuleId": "SUB-1002",
+      "FromItemId": "SG-PEP-BELL",
+      "ToItemId": "SG-PEP-TWST-2LB",
+      "Note": "Great Lakes merchandising prefers Sweet Twister on bell shortfalls"
+    },
+    {
+      "Direction": "OneWay",
+      "Rank": 2,
+      "QtyRatio": 1,
+      "PriceBasis": "Original",
+      "CustAccount": "",
+      "ValidFrom": "",
+      "ValidTo": "",
+      "RuleId": "SUB-1003",
+      "FromItemId": "SG-PEP-TWST-2LB",
+      "ToItemId": "SG-PEP-BELL-3CT"
+    },
+    {
+      "Direction": "OneWay",
+      "Rank": 1,
+      "QtyRatio": 0.625,
+      "PriceBasis": "Original",
+      "CustAccount": "",
+      "ValidFrom": "",
+      "ValidTo": "",
+      "RuleId": "SUB-2001",
+      "FromItemId": "SG-TOM-BEEF",
+      "ToItemId": "SG-TOM-ROM-3LB",
+      "Note": "15 lb carton = 0.625 case of 8 × 3 lb"
+    },
+    {
+      "Direction": "Bidirectional",
+      "Rank": 1,
+      "QtyRatio": 1.6,
+      "PriceBasis": "Substitute",
+      "CustAccount": "",
+      "ValidFrom": "",
+      "ValidTo": "",
+      "RuleId": "SUB-2002",
+      "FromItemId": "SG-TOM-WW-2LB",
+      "ToItemId": "SG-TOM-ANGEL"
+    },
+    {
+      "Direction": "OneWay",
+      "Rank": 1,
+      "QtyRatio": 1.6,
+      "PriceBasis": "Original",
+      "CustAccount": "",
+      "ValidFrom": "2026-09-10",
+      "ValidTo": "2026-11-04",
+      "RuleId": "SUB-2003",
+      "FromItemId": "SG-TOM-ROM-3LB",
+      "ToItemId": "SG-TOM-BEEF",
+      "Note": "Fall changeover program (ended)"
+    },
+    {
+      "Direction": "OneWay",
+      "Rank": 1,
+      "QtyRatio": 1,
+      "PriceBasis": "Original",
+      "CustAccount": "",
+      "ValidFrom": "",
+      "ValidTo": "",
+      "RuleId": "SUB-3001",
+      "FromItemId": "SG-CUC-MINI",
+      "ToItemId": "SG-CUC-MINI-ORG",
+      "Note": "Organic upgrade at the conventional price"
+    },
+    {
+      "Direction": "OneWay",
+      "Rank": 1,
+      "QtyRatio": 1,
+      "PriceBasis": "Original",
+      "CustAccount": "C10009",
+      "ValidFrom": "",
+      "ValidTo": "",
+      "RuleId": "SUB-3002",
+      "FromItemId": "SG-CUC-MINI-ORG",
+      "ToItemId": "SG-CUC-ORG-6CT",
+      "Note": "Organic-for-organic only"
+    },
+    {
+      "Direction": "OneWay",
+      "Rank": 2,
+      "QtyRatio": 1,
+      "PriceBasis": "Original",
+      "CustAccount": "",
+      "ValidFrom": "2026-12-04",
+      "ValidTo": "",
+      "RuleId": "SUB-3003",
+      "FromItemId": "SG-CUC-ORG-6CT",
+      "ToItemId": "SG-CUC-MINI-ORG",
+      "Note": "Starts with the winter 6ct reset"
+    },
+    {
+      "Direction": "OneWay",
+      "Rank": 1,
+      "QtyRatio": 0.625,
+      "PriceBasis": "Original",
+      "CustAccount": "",
+      "ValidFrom": "",
+      "ValidTo": "",
+      "RuleId": "SUB-4001",
+      "FromItemId": "SG-BER-WOW-10OZ",
+      "ToItemId": "SG-BER-WOW-1LB",
+      "Note": "8 × 10 oz = 0.625 case of 8 × 1 lb"
+    },
+    {
+      "Direction": "OneWay",
+      "Rank": 1,
+      "QtyRatio": 0.625,
+      "PriceBasis": "Substitute",
+      "CustAccount": "C10002",
+      "ValidFrom": "",
+      "ValidTo": "",
+      "RuleId": "SUB-4002",
+      "FromItemId": "SG-BER-WOW-10OZ",
+      "ToItemId": "SG-BER-WOW-1LB",
+      "Note": "Northwind pays the 1 lb price on trade-up"
+    }
+  ]
+}

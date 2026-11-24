@@ -12,6 +12,7 @@
     '': () => renderLanding(),
     'commodity': () => renderDetail(),
     'customers': () => renderCustomers(),
+    'substitutions': () => renderSubstitutions(),
     'setup': () => renderSetup(),
   }[page];
   if (boot) boot();

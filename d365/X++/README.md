@@ -14,6 +14,7 @@ the message-bus listener).
 | [RSMProrationFillRateHistory.xpp](RSMProrationFillRateHistory.xpp) | Weekly fill-rate rollup table + accessors for History-Aware mode. |
 | [RSMProrationBatchConsumer.xpp](RSMProrationBatchConsumer.xpp) | Applies an inbound proration batch message (BatchId head + Records array) transactionally. Idempotent by `BatchId`. |
 | [RSMSubstitutionConsumer.xpp](RSMSubstitutionConsumer.xpp) | Applies an inbound substitution batch (own message type): validates against the `RSMItemSubstitution` whitelist, reduces/closes the original line, creates the substitute line. |
+| [RSMSubstitutionRuleConsumer.xpp](RSMSubstitutionRuleConsumer.xpp) | Applies rule + customer-policy maintenance from the app (message type `rsmSalesSubstitutionRuleMessage`): upserts/deletes `RSMItemSubstitution` rows keyed on `RuleId`, sets `CustTable.RSMSubstitutionPolicy`. Idempotent by `BatchId`. |
 | [RSMProrationSubstitutionService.xpp](RSMProrationSubstitutionService.xpp) | Read service exposing active `RSMItemSubstitution` rules (or embed a `substitutions` collection in the snapshot payload). |
 | [RSMProrationMessageBusListener.xpp](RSMProrationMessageBusListener.xpp) | Batch job that drains `d365-proration-inbound` and calls the consumer. |
 | [RSMProrationMessageBusPublisher.xpp](RSMProrationMessageBusPublisher.xpp) | Publishes `ProrationApplied` events back to `d365-proration-events`. |
@@ -28,6 +29,11 @@ the message-bus listener).
 | `CustTable` | `RSMProrationPriority` (int 1–5) | Used by Weighted strategy. |
 | `CustTable` | `RSMIsDistributionCenter` (bool) | Lets UI group DCs under a parent retailer. |
 | `CustTable` | `RSMParentCustomerId` | Optional rollup (e.g. all Costco DCs → Costco HQ). |
+| `CustTable` | `RSMSubstitutionPolicy` (enum Standard / CustomerOnly / Never) + `RSMSubstitutionNote` | Which substitution rules apply to the customer; enforced by `RSMSubstitutionConsumer`. |
+
+`RSMSubstitutionConsumer` / `RSMSubstitutionRuleConsumer` call
+`RSMProrationEventBuilder::ruleApplied/ruleFailed` alongside the existing
+`lineApplied/lineFailed` helpers — add them to that builder when wiring the model.
 
 ## New tables
 

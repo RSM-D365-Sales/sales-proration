@@ -1,0 +1,43 @@
+/* Skin: SUNSET® (Mastronardi Produce).
+   Layout comes from skin-bluestem.css (48px title ribbon, sponsor lockup at
+   the right); this file only re-tints its tokens, taking the pricing
+   dashboard's SUNSET palette (Pricing-dashboard/src/scenarios/sunset/
+   theme.css), which follows the live sunsetgrown.com stylesheet:
+   SUNSET magenta #D41367 for actions and the active nav, and deep plum
+   #2A0F33 (from the site's purple accents) for the ribbon and ink. Status
+   colours stay semantic green / amber / red.
+
+   Loaded after skin-bluestem.css; :root[data-theme="sunset"] has the same
+   specificity as the shared ribbon rules, so source order decides. */
+
+:root[data-theme="sunset"] {
+  --bg: #f6f3f6;
+  --surface: #ffffff;
+  --surface-2: #faf7fa;
+  --ink: #2a0f33;
+  --ink-soft: #52205f;
+  --muted: #6f6475;
+  --line: #e7e0e8;
+  --line-strong: #d3c6d6;
+
+  --accent-soft: #fdf3f7;
+  --accent-line: #f3b8d1;
+  --ring: rgba(212, 19, 103, .28);
+
+  --shadow-sm: 0 1px 2px rgba(42, 15, 51, .05);
+  --shadow-md: 0 12px 32px -12px rgba(42, 15, 51, .3);
+}
+
+/* Ribbon greys tinted toward plum (the shared rules use Midnight greys). */
+:root[data-theme="sunset"] .sidebar { box-shadow: 0 1px 0 rgba(255, 255, 255, .06), 0 2px 8px rgba(42, 15, 51, .3); }
+:root[data-theme="sunset"] .nav__item { color: #ddcde2; }
+:root[data-theme="sunset"] .nav__sponsor-label { color: #ddcde2; }
+:root[data-theme="sunset"] .brand__name { border-left-color: rgba(255, 255, 255, .2); }
+
+/* Bolder headings, closer to the site's Gotham Bold (Poppins is bundled). */
+:root[data-theme="sunset"] .pagehead h1,
+:root[data-theme="sunset"] .section-title { color: var(--ink); }
+:root[data-theme="sunset"] .kpi.accent .value { color: #960d48; }
+:root[data-theme="sunset"] code { background: #fbe7f0; color: #960d48; }
+:root[data-theme="sunset"] .overlay { background: rgba(42, 15, 51, .55); }
+:root[data-theme="sunset"] .nav__avatar { background: #d41367; }

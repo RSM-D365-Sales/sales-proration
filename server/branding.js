@@ -10,7 +10,7 @@ const path = require('path');
 
 const STORE_PATH = path.join(__dirname, 'data', 'branding.json');
 
-const THEMES = ['editorial', 'enterprise', 'bluestem'];
+const THEMES = ['editorial', 'enterprise', 'bluestem', 'sunset'];
 
 const DEFAULTS = {
   brandName: 'Sales Proration',

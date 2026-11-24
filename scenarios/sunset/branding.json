@@ -1,0 +1,16 @@
+{
+  "brandName": "Sales Proration",
+  "tagline": "Fulfillment & substitution planning",
+  "logo": "img/brand/sunset-wordmark-on-plum.svg",
+  "favicon": "img/brand/sunset-icon.svg",
+  "sponsor": {
+    "label": "Powered by",
+    "logo": "img/brand/rsmus-logo-white.png",
+    "alt": "RSM"
+  },
+  "theme": "sunset",
+  "colors": {
+    "accent": "#D41367",
+    "sidebar": "#2A0F33"
+  }
+}

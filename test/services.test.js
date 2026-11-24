@@ -208,3 +208,127 @@ test('buildBatchMessage: SalesOrderNumber is a string; line number and qty are n
   assert.equal(rec.SalesLineNumber, 2);
   assert.equal(rec.DeliveryReminder, 7);
 });
+
+// ---- Customer-based substitution (public/js/shared/subs.js) -------------------
+
+const Subs = require('../public/js/shared/subs.js');
+const { buildRuleMessage } = require('../server/d365Client');
+const { normalizeSnapshot } = require('../public/js/shared/snapshot.js');
+const core = require('../public/js/shared/portal-core.js');
+
+const ASOF = '2026-11-24';
+const rule = (o) => ({ ruleId: o.ruleId || `${o.fromItemId}>${o.toItemId}:${o.customerId || '*'}`, direction: 'OneWay', rank: 1, qtyRatio: 1,
+  customerId: '', priceBasis: 'Original', validFrom: '', validTo: '', ...o });
+const RULES = [
+  rule({ fromItemId: 'BELL', toItemId: '3CT', qtyRatio: 0.75 }),
+  rule({ fromItemId: 'BELL', toItemId: 'TWST', customerId: 'GL' }),
+  rule({ fromItemId: 'WW', toItemId: 'ANGEL', direction: 'Bidirectional', qtyRatio: 1.6 }),
+  rule({ fromItemId: 'ROMA', toItemId: 'BEEF', validTo: '2026-11-01' }),
+];
+const std = { customerId: 'X', priority: 3, substitutionPolicy: 'Standard' };
+
+test('substitutesFor: customer rule first, then all-customer rules', () => {
+  const out = Subs.substitutesFor(RULES, { customerId: 'GL', substitutionPolicy: 'Standard' }, 'BELL', ASOF);
+  assert.deepEqual(out.map(c => c.toItemId), ['TWST', '3CT']);
+  assert.equal(out[0].scope, 'Customer');
+});
+
+test('substitutesFor: CustomerOnly ignores all-customer rules; Never gets nothing', () => {
+  assert.deepEqual(Subs.substitutesFor(RULES, { customerId: 'GL', substitutionPolicy: 'CustomerOnly' }, 'BELL', ASOF).map(c => c.toItemId), ['TWST']);
+  assert.deepEqual(Subs.substitutesFor(RULES, { customerId: 'X', substitutionPolicy: 'CustomerOnly' }, 'BELL', ASOF), []);
+  assert.deepEqual(Subs.substitutesFor(RULES, { customerId: 'GL', substitutionPolicy: 'Never' }, 'BELL', ASOF), []);
+});
+
+test('substitutesFor: bidirectional rule read backwards uses the inverse ratio; expired rules are ignored', () => {
+  const back = Subs.substitutesFor(RULES, std, 'ANGEL', ASOF);
+  assert.equal(back[0].toItemId, 'WW');
+  assert.ok(Math.abs(back[0].ratio - 1 / 1.6) < 1e-9);
+  assert.equal(Subs.substitutesFor(RULES, std, 'ROMA', ASOF).length, 0);
+  assert.equal(Subs.ruleStatus(RULES[3], ASOF), 'Expired');
+  assert.equal(Subs.ruleStatus(rule({ validFrom: '2026-12-01' }), ASOF), 'Scheduled');
+});
+
+test('autoSubstitute: P1 served first, pools respected, Never and no-rule lines skipped', () => {
+  const customers = [
+    { customerId: 'GL', priority: 1, substitutionPolicy: 'Standard' },
+    { customerId: 'A', priority: 2, substitutionPolicy: 'Standard' },
+    { customerId: 'B', priority: 3, substitutionPolicy: 'Standard' },
+    { customerId: 'N', priority: 1, substitutionPolicy: 'Never' },
+  ];
+  const shortLines = [
+    { salesId: 'S3', lineNum: 1, itemId: 'BELL', customerId: 'B', shortfall: 100 },
+    { salesId: 'S2', lineNum: 1, itemId: 'BELL', customerId: 'A', shortfall: 100 },
+    { salesId: 'S1', lineNum: 1, itemId: 'BELL', customerId: 'GL', shortfall: 50 },
+    { salesId: 'S4', lineNum: 1, itemId: 'BELL', customerId: 'N', shortfall: 40 },
+    { salesId: 'S5', lineNum: 1, itemId: 'SHAZ', customerId: 'A', shortfall: 10 },
+  ];
+  const pools = { '3CT': 90, TWST: 30 };
+  const r = Subs.autoSubstitute({ shortLines, customers, rules: RULES, pools, asOf: ASOF });
+  // GL: 30 Twister (customer rule) then 3ct for the remaining 20 → ceil(20 × 0.75) = 15
+  assert.deepEqual(r.staged.filter(s => s.customerId === 'GL').map(s => [s.toItemId, s.qty]), [['TWST', 30], ['3CT', 15]]);
+  // A takes the next 75 of 3ct (100 × 0.75); B is left with nothing
+  assert.deepEqual(r.staged.filter(s => s.customerId === 'A').map(s => [s.toItemId, s.qty]), [['3CT', 75]]);
+  assert.equal(r.staged.filter(s => s.customerId === 'B').length, 0);
+  assert.equal(r.staged.filter(s => s.toItemId === '3CT').reduce((t, s) => t + s.qty, 0), 90, 'never exceeds the pool');
+  assert.deepEqual(r.skipped.map(s => s.reason).sort(), ['never', 'no-rule', 'stock']);
+  assert.equal(pools['3CT'], 90, 'input pools not mutated');
+});
+
+test('subEconomics: price basis changes revenue, cost is always the substitute', () => {
+  const from = { listPrice: 18.75, unitCost: 13.4 }, to = { listPrice: 28.8, unitCost: 17.5 };
+  const orig = Subs.subEconomics({ fromItem: from, toItem: to, qty: 10, ratio: 1, priceBasis: 'Original' });
+  const sub = Subs.subEconomics({ fromItem: from, toItem: to, qty: 10, ratio: 1, priceBasis: 'Substitute' });
+  assert.equal(orig.revenue, 187.5); assert.equal(sub.revenue, 288);
+  assert.equal(orig.cost, 175); assert.equal(sub.cost, 175);
+  assert.ok(Math.abs(orig.baselineMargin - 53.5) < 1e-9);
+  assert.equal(Subs.subEconomics({ fromItem: {}, toItem: to, qty: 1 }), null, 'unknown prices → null, not a fake margin');
+});
+
+test('validateRule: same buyer group, no self-substitution, sane ratio and dates', () => {
+  const items = [{ itemId: 'A', commodityId: 'P' }, { itemId: 'B', commodityId: 'P' }, { itemId: 'C', commodityId: 'T' }];
+  assert.deepEqual(Subs.validateRule(rule({ fromItemId: 'A', toItemId: 'B' }), items), []);
+  assert.ok(Subs.validateRule(rule({ fromItemId: 'A', toItemId: 'C' }), items).length);
+  assert.ok(Subs.validateRule(rule({ fromItemId: 'A', toItemId: 'A' }), items).length);
+  assert.ok(Subs.validateRule(rule({ fromItemId: 'A', toItemId: 'B', qtyRatio: 0 }), items).length);
+  assert.ok(Subs.validateRule(rule({ fromItemId: 'A', toItemId: 'B', validFrom: '2026-12-01', validTo: '2026-11-01' }), items).length);
+});
+
+test('buildRuleMessage: own message type, rules + customer policies', () => {
+  const env = buildRuleMessage({
+    rules: [{ action: 'Upsert', rule: rule({ ruleId: 'SUB-1', fromItemId: 'A', toItemId: 'B', customerId: 'C1', priceBasis: 'Substitute' }) },
+            { action: 'Delete', rule: rule({ ruleId: 'SUB-2', fromItemId: 'A', toItemId: 'C' }) }],
+    policies: [{ customerId: 'C9', substitutionPolicy: 'Never', substitutionNote: 'menu spec' }],
+  }, 'MPL', 'b-1');
+  assert.equal(env._messageType, 'rsmSalesSubstitutionRuleMessage');
+  assert.equal(env._messageQueue, 'rsmSalesProrateAccelerator');
+  const c = JSON.parse(env._messageContent);
+  assert.equal(c.BatchId, 'b-1');
+  assert.deepEqual(c.Rules.map(r => r.Action), ['Upsert', 'Delete']);
+  assert.equal(c.Rules[0].PriceBasis, 'SubstituteItemPrice');
+  assert.equal(c.Rules[1].CustAccount, '');
+  assert.deepEqual(c.CustomerPolicies, [{ CustAccount: 'C9', SubstitutionPolicy: 'Never', Note: 'menu spec' }]);
+});
+
+test('normalizeSnapshot: prices, policies and rule fields; D365 "never" dates are blank', () => {
+  const snap = normalizeSnapshot({
+    asOf: '2026-11-24',
+    items: [{ ItemId: 'A', CommodityId: 'P', name: 'A', ListPrice: 10, UnitCost: 6 }, { ItemId: 'B', CommodityId: 'P' }],
+    customers: [{ CustAccount: 'C1', name: 'One', RSMSubstitutionPolicy: 'never' }, { CustAccount: 'C2', name: 'Two' }],
+    substitutions: [{ FromItemId: 'A', ToItemId: 'B', Direction: 'Bidirectional', PriceBasis: 'SubstituteItemPrice', ValidFrom: '1900-01-01T00:00:00' }],
+  });
+  assert.equal(snap.asOf, '2026-11-24');
+  assert.equal(snap.items[0].listPrice, 10); assert.equal(snap.items[1].listPrice, null);
+  assert.deepEqual(snap.customers.map(c => c.substitutionPolicy), ['Never', 'Standard']);
+  assert.equal(snap.substitutions[0].direction, 'Bidirectional');
+  assert.equal(snap.substitutions[0].priceBasis, 'Substitute');
+  assert.equal(snap.substitutions[0].validFrom, '');
+});
+
+test('cleanRulePublish: rejects unknown customers, bad policies and invalid rules', () => {
+  const snap = { items: [{ itemId: 'A', commodityId: 'P' }, { itemId: 'B', commodityId: 'P' }], customers: [{ customerId: 'C1' }] };
+  assert.throws(() => core.cleanRulePublish({}, snap), /required/);
+  assert.throws(() => core.cleanRulePublish({ policies: [{ customerId: 'ZZ', substitutionPolicy: 'Never' }] }, snap), /Unknown customer/);
+  assert.throws(() => core.cleanRulePublish({ policies: [{ customerId: 'C1', substitutionPolicy: 'Sometimes' }] }, snap), /Invalid policy/);
+  assert.throws(() => core.cleanRulePublish({ rules: [{ action: 'Upsert', rule: rule({ fromItemId: 'A', toItemId: 'A' }) }] }, snap), /itself/);
+  assert.equal(core.cleanRulePublish({ rules: [{ action: 'Delete', rule: rule({ ruleId: 'R1', fromItemId: 'A', toItemId: 'B' }) }] }, snap).rules.length, 1);
+});

@@ -35,40 +35,10 @@ function assertConfigured() {
   }
 }
 
-// --- tolerant field access (handles ItemId vs itemId, $id noise, etc.) -------
-
-function get(obj, name) {
-  if (!obj || typeof obj !== 'object') return undefined;
-  if (name in obj) return obj[name];
-  const lower = name.toLowerCase();
-  for (const k of Object.keys(obj)) {
-    if (k.toLowerCase() === lower) return obj[k];
-  }
-  return undefined;
-}
-function pick(obj, ...names) {
-  for (const n of names) {
-    const v = get(obj, n);
-    if (v !== undefined && v !== null) return v;
-  }
-  return undefined;
-}
-function num(v, fallback = 0) {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : fallback;
-}
-/** "01" -> 1, "" -> fallback, 2 -> 2. */
-function intOr(v, fallback) {
-  const n = parseInt(v, 10);
-  return Number.isFinite(n) ? n : fallback;
-}
-/** ISO datetime -> YYYY-MM-DD (leaves already-short dates alone). */
-function toDate(v) {
-  if (!v) return '';
-  const s = String(v);
-  return s.length >= 10 ? s.slice(0, 10) : s;
-}
-function asArray(v) { return Array.isArray(v) ? v : []; }
+// Tolerant field access + snapshot normalization live in the shared module so
+// the browser (static demo builds) normalizes exactly like the server.
+const { normalizeSnapshot, num, asArray } = require('../public/js/shared/snapshot.js');
+const Messages = require('../public/js/shared/messages.js');
 
 // --- token cache (keyed by environment identity) -----------------------------
 
@@ -132,66 +102,6 @@ function snapshotFromFile() {
   return normalizeSnapshot(JSON.parse(fs.readFileSync(file, 'utf8')));
 }
 const usingSnapshotFile = () => !!SNAPSHOT_FILE;
-
-function normalizeSnapshot(raw) {
-  const commodities = asArray(get(raw, 'commodities')).map(c => {
-    const id = pick(c, 'commodityId', 'CommodityId');
-    const desc = pick(c, 'description', 'Description') ?? '';
-    return { id, name: desc || id, description: '' };
-  });
-
-  const items = asArray(get(raw, 'items')).map(i => ({
-    itemId:      pick(i, 'itemId', 'ItemId'),
-    commodityId: pick(i, 'commodityId', 'CommodityId') ?? '',
-    name:        pick(i, 'name') ?? pick(i, 'itemId', 'ItemId'),
-    uom:         pick(i, 'uom', 'unit') ?? '',
-  }));
-
-  const customers = asArray(get(raw, 'customers')).map(c => ({
-    customerId: pick(c, 'customerId', 'CustAccount', 'AccountNum'),
-    name:       pick(c, 'name') ?? pick(c, 'customerId'),
-    priority:   intOr(pick(c, 'priority', 'Priority'), 3),
-    // Ship-to location — optional in the feed (RSMProrationCustomerContract
-    // exposes shipToCity/shipToState); blank when the contract omits them.
-    city:       String(pick(c, 'shipToCity', 'city') ?? ''),
-    state:      String(pick(c, 'shipToState', 'state') ?? ''),
-  }));
-
-  const demand = asArray(get(raw, 'Demand') || get(raw, 'demand')).map(d => ({
-    salesId:           pick(d, 'salesId', 'SalesId'),
-    lineNum:           num(pick(d, 'lineNum', 'LineNum')),
-    itemId:            pick(d, 'itemId', 'ItemId'),
-    customerId:        pick(d, 'customerId', 'CustAccount'),
-    siteId:            String(pick(d, 'siteId', 'SiteId', 'InventSiteId') ?? ''),
-    warehouseId:       String(pick(d, 'warehouseId', 'WarehouseId', 'InventLocationId') ?? ''),
-    requestedQty:      num(pick(d, 'requestedQty', 'RequestedQty', 'Qty')),
-    requestedShipDate: toDate(pick(d, 'requestedShipDate', 'RequestedShipDate', 'ShippingDateRequested')),
-  }));
-
-  const supply = asArray(get(raw, 'Supply') || get(raw, 'supply')).map(s => ({
-    itemId:       pick(s, 'itemId', 'ItemId'),
-    siteId:       String(pick(s, 'siteId', 'SiteId', 'InventSiteId') ?? ''),
-    warehouseId:  String(pick(s, 'warehouseId', 'WarehouseId', 'InventLocationId') ?? ''),
-    availableQty: num(pick(s, 'availableQty', 'AvailableQty')),
-  }));
-
-  // Item substitution whitelist (RSMItemSubstitution rows). Optional — the
-  // feed doesn't send these yet; the UI treats candidates without a rule as
-  // "unverified" until it does.
-  const substitutions = asArray(get(raw, 'substitutions')).map(s => ({
-    fromItemId: pick(s, 'fromItemId', 'FromItemId'),
-    toItemId:   pick(s, 'toItemId', 'ToItemId'),
-    direction:  String(pick(s, 'direction', 'Direction') ?? 'OneWay'),
-    rank:       num(pick(s, 'rank', 'Rank'), 1),
-    qtyRatio:   num(pick(s, 'qtyRatio', 'QtyRatio'), 1) || 1,
-    customerId: String(pick(s, 'custAccount', 'CustAccount', 'customerId') ?? ''),
-  }));
-
-  // The SPA feed has no fill-rate history; History-Aware degrades to Weighted.
-  const customerFillHistory = {};
-
-  return { commodities, items, customers, demand, supply, substitutions, customerFillHistory };
-}
 
 /**
  * Pull (and cache) the full planning snapshot for the active environment's
@@ -281,52 +191,8 @@ async function testConnection() {
 //       { "SalesOrderNumber": "000751", "SalesLineNumber": 1,
 //         "ItemId": "A0001", "DeliveryReminder": 5 }, … ] }
 
-const SEND_MESSAGE_PATH  = '/api/services/SysMessageServices/SysMessageService/SendMessage';
-const MESSAGE_QUEUE      = 'rsmSalesProrateAccelerator';
-const MESSAGE_TYPE       = 'rsmSalesProrateAcceleratorMessage';
-// Substitutions are a different business event -> different message type
-// (own contract + consumer in D365), same queue.
-const SUB_MESSAGE_TYPE   = 'rsmSalesSubstituteAcceleratorMessage';
-
-/** Build the SendMessage envelope for one batch of allocated lines. */
-function buildBatchMessage(lines, company, batchId) {
-  const content = {
-    BatchId: batchId,
-    Records: asArray(lines).map(l => ({
-      SalesOrderNumber: String(l.salesId),
-      SalesLineNumber:  num(l.lineNum, 0),
-      ItemId:           l.itemId,
-      DeliveryReminder: num(l.allocatedQty, 0), // the prorated quantity
-    })),
-  };
-  return {
-    _companyId:      company,
-    _messageQueue:   MESSAGE_QUEUE,
-    _messageType:    MESSAGE_TYPE,
-    _messageContent: JSON.stringify(content),
-  };
-}
-
-/** Build the SendMessage envelope for one batch of staged substitutions. */
-function buildSubstitutionMessage(subs, company, batchId) {
-  const content = {
-    BatchId: batchId,
-    Records: asArray(subs).map(s => ({
-      SalesOrderNumber:     String(s.salesId),
-      SalesLineNumber:      num(s.lineNum, 0),
-      OriginalItemId:       s.fromItemId,
-      SubstituteItemId:     s.toItemId,
-      SubstituteQty:        num(s.qty, 0),
-      RemainingOriginalQty: num(s.remainingOriginalQty, 0),
-    })),
-  };
-  return {
-    _companyId:      company,
-    _messageQueue:   MESSAGE_QUEUE,
-    _messageType:    SUB_MESSAGE_TYPE,
-    _messageContent: JSON.stringify(content),
-  };
-}
+const { SEND_MESSAGE_PATH, MESSAGE_TYPE, SUB_MESSAGE_TYPE, RULE_MESSAGE_TYPE,
+  buildBatchMessage, buildSubstitutionMessage, buildRuleMessage } = Messages;
 
 function resolveCompany(c, companyOverride) {
   const company = (companyOverride || c.company || '').trim();
@@ -346,8 +212,10 @@ async function postQueueMessage(c, message, base) {
     const content = JSON.parse(message._messageContent);
     const pub = publishBatch({
       batchId: base.batchId, createdUtc: new Date().toISOString(), createdBy: 'demo@local',
-      strategy: base.messageType === SUB_MESSAGE_TYPE ? 'Substitution' : (base.strategy || 'Proration'),
-      commodityId: base.commodityId || null, lines: content.Records,
+      strategy: base.messageType === SUB_MESSAGE_TYPE ? 'Substitution'
+        : base.messageType === RULE_MESSAGE_TYPE ? 'Substitution rules'
+        : (base.strategy || 'Proration'),
+      commodityId: base.commodityId || null, lines: content.Records || [...(content.Rules || []), ...(content.CustomerPolicies || [])],
     });
     return { ok: true, ...base, url: pub.outbox, status: 202, response: { demo: true } };
   }
@@ -422,8 +290,26 @@ async function sendSubstitutionBatch(subs, { company: companyOverride, batchId }
     { batchId: id, messageType: SUB_MESSAGE_TYPE, company, recordCount: records.length, skipped: 0 });
 }
 
+/**
+ * POST one SysMessageService.SendMessage carrying substitution rule upserts /
+ * deletes and customer policy changes (message type
+ * rsmSalesSubstitutionRuleMessage, consumed by RSMSubstitutionRuleConsumer).
+ */
+async function sendRuleChanges({ rules = [], policies = [] } = {}, { company: companyOverride, batchId } = {}) {
+  if (!usingSnapshotFile()) assertConfigured();
+  const c = getActiveConfig();
+  const company = usingSnapshotFile() ? (c.company || 'BFP') : resolveCompany(c, companyOverride);
+  if (!rules.length && !policies.length) {
+    throw new D365Error('No rule or policy changes to send.', { status: 400 });
+  }
+  const id = batchId || crypto.randomUUID();
+  return postQueueMessage(c, buildRuleMessage({ rules, policies }, company, id),
+    { batchId: id, messageType: RULE_MESSAGE_TYPE, company, recordCount: rules.length + policies.length, skipped: 0 });
+}
+
 module.exports = {
-  D365Error, getSnapshot, testConnection,
+  D365Error, getSnapshot, testConnection, normalizeSnapshot,
   sendProrationBatch, buildBatchMessage,
   sendSubstitutionBatch, buildSubstitutionMessage,
+  sendRuleChanges, buildRuleMessage,
 };

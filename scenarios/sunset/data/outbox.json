@@ -1,0 +1,98 @@
+[
+  {
+    "topic": "d365-proration-inbound",
+    "enqueuedUtc": "2026-11-20T13:21:00.000Z",
+    "messageId": "5a17c0df-6f1c-4b7a-9a7e-000000000001",
+    "body": {
+      "batchId": "5a17c0df-6f1c-4b7a-9a7e-000000000001",
+      "createdUtc": "2026-11-20T13:21:00.000Z",
+      "createdBy": "dana.whitfield@sunsetgrown.example",
+      "strategy": "Weighted",
+      "commodityId": "TOM",
+      "lines": [
+        {
+          "salesId": "SO-61271",
+          "lineNum": 1,
+          "itemId": "SG-TOM-WW-2LB",
+          "allocatedQty": 171
+        },
+        {
+          "salesId": "SO-61268",
+          "lineNum": 3,
+          "itemId": "SG-TOM-WW-2LB",
+          "allocatedQty": 200
+        },
+        {
+          "salesId": "SO-61252",
+          "lineNum": 1,
+          "itemId": "SG-TOM-WW-2LB",
+          "allocatedQty": 105
+        }
+      ]
+    }
+  },
+  {
+    "topic": "d365-proration-inbound",
+    "enqueuedUtc": "2026-11-22T08:44:00.000Z",
+    "messageId": "5a17c0e0-6f1c-4b7a-9a7e-000000000002",
+    "body": {
+      "batchId": "5a17c0e0-6f1c-4b7a-9a7e-000000000002",
+      "createdUtc": "2026-11-22T08:44:00.000Z",
+      "createdBy": "dana.whitfield@sunsetgrown.example",
+      "strategy": "StraightLine",
+      "commodityId": "CUC",
+      "lines": [
+        {
+          "salesId": "SO-61271",
+          "lineNum": 3,
+          "itemId": "SG-CUC-ORG-6CT",
+          "allocatedQty": 194
+        },
+        {
+          "salesId": "SO-61241",
+          "lineNum": 3,
+          "itemId": "SG-CUC-ORG-6CT",
+          "allocatedQty": 146
+        },
+        {
+          "salesId": "SO-61264",
+          "lineNum": 1,
+          "itemId": "SG-CUC-ORG-6CT",
+          "allocatedQty": 243
+        }
+      ]
+    }
+  },
+  {
+    "topic": "d365-proration-inbound",
+    "enqueuedUtc": "2026-11-23T15:37:00.000Z",
+    "messageId": "5a17c0e1-6f1c-4b7a-9a7e-000000000003",
+    "body": {
+      "batchId": "5a17c0e1-6f1c-4b7a-9a7e-000000000003",
+      "createdUtc": "2026-11-23T15:37:00.000Z",
+      "createdBy": "dana.whitfield@sunsetgrown.example",
+      "strategy": "Weighted",
+      "commodityId": "PEP",
+      "lines": [
+        {
+          "salesId": "SO-61268",
+          "lineNum": 2,
+          "itemId": "SG-PEP-SHAZAM",
+          "allocatedQty": 116
+        },
+        {
+          "salesId": "SO-61249",
+          "lineNum": 1,
+          "itemId": "SG-PEP-SHAZAM",
+          "allocatedQty": 75
+        },
+        {
+          "salesId": "SO-61251",
+          "lineNum": 1,
+          "itemId": "SG-PEP-SHAZAM",
+          "allocatedQty": 108
+        }
+      ]
+    }
+  }
+]

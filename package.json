@@ -6,7 +6,11 @@
   "scripts": {
     "start": "node server/index.js",
     "dev": "node server/index.js",
-    "test": "node --test test/services.test.js"
+    "test": "node --test test/services.test.js",
+    "seed:sunset": "node scenarios/sunset/seed.mjs",
+    "build:sunset": "node scripts/build-static.mjs sunset",
+    "preview:sunset": "node scripts/preview-static.mjs dist-sunset 5180",
+    "deploy:sunset": "node scripts/build-static.mjs sunset && npx wrangler pages deploy dist-sunset --project-name=greenhouse-sales-proration --branch=main --commit-dirty=true"
   },
   "dependencies": {
     "@azure/functions": "^4.16.0",

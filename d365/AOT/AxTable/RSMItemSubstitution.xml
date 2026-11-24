@@ -26,14 +26,76 @@ public static RSMItemSubstitution findActive(
 {
     RSMItemSubstitution sub;
 
-    select firstonly sub
-        where sub.FromItemId  == _fromItemId
-           && sub.ToItemId    == _toItemId
-           && (sub.CustAccount == _custAccount || sub.CustAccount == '')
-           && (!sub.ValidFrom || sub.ValidFrom <= _asOf)
-           && (!sub.ValidTo   || sub.ValidTo   >= _asOf);
-
+    // Customer-specific row first, then the all-customer row.
+    if (_custAccount)
+    {
+        select firstonly sub
+            where sub.FromItemId  == _fromItemId
+               && sub.ToItemId    == _toItemId
+               && sub.CustAccount == _custAccount
+               && (!sub.ValidFrom || sub.ValidFrom <= _asOf)
+               && (!sub.ValidTo   || sub.ValidTo   >= _asOf);
+    }
+    if (!sub)
+    {
+        select firstonly sub
+            where sub.FromItemId  == _fromItemId
+               && sub.ToItemId    == _toItemId
+               && sub.CustAccount == ''
+               && (!sub.ValidFrom || sub.ValidFrom <= _asOf)
+               && (!sub.ValidTo   || sub.ValidTo   >= _asOf);
+    }
     return sub;
+}
+]]></Source>
+      </Method>
+      <Method>
+        <Name>findForCustomer</Name>
+        <Source><![CDATA[
+/// <summary>
+/// The rule that lets this customer take _toItemId for _fromItemId, honouring
+/// CustTable.RSMSubstitutionPolicy: Never = none; CustomerOnly = only rows
+/// naming the customer; Standard = customer row, else all-customer row.
+/// Bidirectional rows match in reverse. Mirrors public/js/shared/subs.js in
+/// the web app, so the planner only proposes what this method accepts.
+/// </summary>
+public static RSMItemSubstitution findForCustomer(
+    ItemId    _fromItemId,
+    ItemId    _toItemId,
+    CustTable _cust,
+    TransDate _asOf = systemDateGet())
+{
+    RSMItemSubstitution sub;
+
+    if (_cust.RSMSubstitutionPolicy == RSMSubstitutionPolicy::Never)
+    {
+        return sub;
+    }
+    sub = RSMItemSubstitution::findActive(_fromItemId, _toItemId, _cust.AccountNum, _asOf);
+    if (!sub)
+    {
+        RSMItemSubstitution back = RSMItemSubstitution::findActive(_toItemId, _fromItemId, _cust.AccountNum, _asOf);
+        if (back.Direction == RSMSubstitutionDirection::Bidirectional)
+        {
+            sub = back;
+        }
+    }
+    if (sub && !sub.CustAccount && _cust.RSMSubstitutionPolicy == RSMSubstitutionPolicy::CustomerOnly)
+    {
+        sub = null;
+    }
+    return sub;
+}
+]]></Source>
+      </Method>
+      <Method>
+        <Name>ratioFrom</Name>
+        <Source><![CDATA[
+/// <summary>Substitute units per ordered unit when substituting away from _orderedItemId (inverse for a reversed bidirectional rule).</summary>
+public RSMSubstitutionQtyRatio ratioFrom(ItemId _orderedItemId)
+{
+    RSMSubstitutionQtyRatio r = this.QtyRatio > 0 ? this.QtyRatio : 1.0;
+    return _orderedItemId == this.FromItemId ? r : 1.0 / r;
 }
 ]]></Source>
       </Method>
@@ -114,6 +176,9 @@ public boolean validateWrite()
         <AxTableFieldGroupField><DataField>CustAccount</DataField></AxTableFieldGroupField>
         <AxTableFieldGroupField><DataField>ValidFrom</DataField></AxTableFieldGroupField>
         <AxTableFieldGroupField><DataField>ValidTo</DataField></AxTableFieldGroupField>
+        <AxTableFieldGroupField><DataField>PriceBasis</DataField></AxTableFieldGroupField>
+        <AxTableFieldGroupField><DataField>RuleId</DataField></AxTableFieldGroupField>
+        <AxTableFieldGroupField><DataField>Note</DataField></AxTableFieldGroupField>
       </Fields>
     </AxTableFieldGroup>
   </FieldGroups>
@@ -161,6 +226,23 @@ public boolean validateWrite()
       <ExtendedDataType>TransDate</ExtendedDataType>
       <Label>Valid to</Label>
     </AxTableField>
+    <AxTableField xmlns="" i:type="AxTableFieldEnum">
+      <Name>PriceBasis</Name>
+      <EnumType>RSMSubstitutionPriceBasis</EnumType>
+      <Label>Bill substitute at</Label>
+      <HelpText>Ordered item price protects the customer on a trade-up; substitute item price passes the substitute's own price through.</HelpText>
+    </AxTableField>
+    <AxTableField xmlns="" i:type="AxTableFieldString">
+      <Name>RuleId</Name>
+      <ExtendedDataType>Num</ExtendedDataType>
+      <Label>Rule</Label>
+      <HelpText>Stable rule identifier shared with the web app (upsert key for RSMSubstitutionRuleConsumer).</HelpText>
+    </AxTableField>
+    <AxTableField xmlns="" i:type="AxTableFieldString">
+      <Name>Note</Name>
+      <ExtendedDataType>Description255</ExtendedDataType>
+      <Label>Note</Label>
+    </AxTableField>
   </Fields>
   <FullTextIndexes />
   <Indexes>
@@ -171,6 +253,13 @@ public boolean validateWrite()
         <AxTableIndexField><DataField>FromItemId</DataField></AxTableIndexField>
         <AxTableIndexField><DataField>ToItemId</DataField></AxTableIndexField>
         <AxTableIndexField><DataField>CustAccount</DataField></AxTableIndexField>
+      </Fields>
+    </AxTableIndex>
+    <AxTableIndex>
+      <Name>RuleIdIdx</Name>
+      <AllowDuplicates>Yes</AllowDuplicates>
+      <Fields>
+        <AxTableIndexField><DataField>RuleId</DataField></AxTableIndexField>
       </Fields>
     </AxTableIndex>
     <AxTableIndex>

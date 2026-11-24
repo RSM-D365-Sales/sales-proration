@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxEnum xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+  <Name>RSMSubstitutionPolicy</Name>
+  <Label>Substitution policy</Label>
+  <Help>Which substitution rules apply to this customer: all-customer rules plus their own (Standard), only rules that name them (Customer rules only), or none (Never substitute).</Help>
+  <Tags>RSM_SalesProration</Tags>
+  <UseEnumValue>No</UseEnumValue>
+  <EnumValues>
+    <AxEnumValue>
+      <Name>Standard</Name>
+      <Label>Standard</Label>
+      <Value>0</Value>
+    </AxEnumValue>
+    <AxEnumValue>
+      <Name>CustomerOnly</Name>
+      <Label>Customer rules only</Label>
+      <Value>1</Value>
+    </AxEnumValue>
+    <AxEnumValue>
+      <Name>Never</Name>
+      <Label>Never substitute</Label>
+      <Value>2</Value>
+    </AxEnumValue>
+  </EnumValues>
+</AxEnum>

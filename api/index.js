@@ -87,6 +87,13 @@ app.http('customers', {
   handler: guarded(async () => json(200, await portal.listCustomers())),
 });
 
+app.http('substitutions', {
+  methods: ['GET'],
+  route: 'substitutions',
+  authLevel: 'anonymous',
+  handler: guarded(async () => json(200, await portal.substitutionBook())),
+});
+
 app.http('prorate', {
   methods: ['POST'],
   route: 'prorate',
@@ -115,6 +122,18 @@ app.http('substituteSend', {
     const result = await portal.sendSubstitutions(body.substitutions);
     return json(result.ok ? 202 : 502, result);
   }, ANY_ROLE, { limited: true }),
+});
+
+// Rule + policy maintenance is master data: Proration.Admin only.
+app.http('substitutionsPublish', {
+  methods: ['POST'],
+  route: 'substitutions/publish',
+  authLevel: 'anonymous',
+  handler: guarded(async (request) => {
+    const body = await request.json().catch(() => ({}));
+    const result = await portal.sendRuleChanges(body);
+    return json(result.ok ? 202 : 502, result);
+  }, [ROLES.ADMIN], { limited: true }),
 });
 
 // Branding is read-only when hosted — edit server/data/branding.json in the

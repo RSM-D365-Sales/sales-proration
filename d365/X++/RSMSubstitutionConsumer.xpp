@@ -3,9 +3,11 @@
 // Purpose: Invoked by the message processor for queue
 //          `rsmSalesProrateAccelerator`, message type
 //          `rsmSalesSubstituteAcceleratorMessage`. Applies an approved item
-//          substitution batch: validates each record against the
-//          RSMItemSubstitution whitelist, reduces (or closes) the original
-//          sales line, and creates a new line for the substitute item.
+//          substitution batch: checks the customer's substitution policy
+//          (CustTable.RSMSubstitutionPolicy), validates each record against
+//          the RSMItemSubstitution whitelist, reduces (or closes) the original
+//          sales line, and creates a new line for the substitute item priced
+//          per the rule's PriceBasis.
 //
 // Kept separate from RSMProrationBatchConsumer on purpose — substitution does
 // real order surgery (new line, pricing, trade agreements), and a failed
@@ -43,9 +45,17 @@ public class RSMSubstitutionConsumer
                 continue;
             }
 
-            // Defense in depth: the app proposes, the whitelist disposes.
-            if (!RSMItemSubstitution::findActive(
-                    rec.parmOriginalItemId(), rec.parmSubstituteItemId(), original.CustAccount()))
+            // Defense in depth: the app proposes, the customer's policy and
+            // the whitelist dispose.
+            CustTable cust = CustTable::find(original.CustAccount);
+            if (cust.RSMSubstitutionPolicy == RSMSubstitutionPolicy::Never)
+            {
+                lineResults.addEnd(RSMProrationEventBuilder::lineFailed(rec, 'Customer never accepts substitutes'));
+                continue;
+            }
+            RSMItemSubstitution rule = RSMItemSubstitution::findForCustomer(
+                rec.parmOriginalItemId(), rec.parmSubstituteItemId(), cust);
+            if (!rule)
             {
                 lineResults.addEnd(RSMProrationEventBuilder::lineFailed(rec, 'No active substitution rule'));
                 continue;
@@ -56,6 +66,9 @@ public class RSMSubstitutionConsumer
                 lineResults.addEnd(RSMProrationEventBuilder::lineFailed(rec, 'Invalid quantity'));
                 continue;
             }
+
+            SalesQty   orderedQty   = original.SalesQty;
+            SalesPrice orderedPrice = original.SalesPrice;
 
             // 1. Reduce / close the original line.
             original.SalesQty = rec.parmRemainingOriginalQty();
@@ -71,11 +84,26 @@ public class RSMSubstitutionConsumer
             subLine.ShippingDateRequested = original.ShippingDateRequested;
             subLine.createLine(true, true, true, true, true, true); // validate + init from item/price
 
+            // 3. Price basis. SubstituteItemPrice keeps the trade-agreement
+            //    price createLine found. OriginalItemPrice bills the cases the
+            //    substitute covers at what the customer agreed to pay for the
+            //    ordered item: covered = qty / ratio, so the unit price is
+            //    orderedPrice / ratio (at a 0.75 ratio, each 3ct case is billed
+            //    at 4/3 of the bulk carton price).
+            if (rule.PriceBasis == RSMSubstitutionPriceBasis::OriginalItemPrice)
+            {
+                subLine.selectForUpdate(true);
+                subLine.SalesPrice = CurrencyExchangeHelper::price(
+                    orderedPrice / rule.ratioFrom(rec.parmOriginalItemId()), original.CurrencyCode);
+                subLine.LineAmount = subLine.calcLineAmount();
+                subLine.update();
+            }
+
             RSMProrationBatchLine bl;
             bl.BatchId      = _batch.parmBatchId();
             bl.SalesId      = rec.parmSalesOrderNumber();
             bl.LineNum      = rec.parmSalesLineNumber();
-            bl.OriginalQty  = original.SalesQty;
+            bl.OriginalQty  = orderedQty;
             bl.AllocatedQty = rec.parmSubstituteQty();
             bl.insert();
 

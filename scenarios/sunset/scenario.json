@@ -1,0 +1,12 @@
+{
+  "$comment": "SUNSET (Mastronardi Produce) static build. Edit here, then: npm run build:sunset. asOf blank = the day you build; the static site also re-anchors every date to the viewer's today at load (rebaseDates), so a deployed demo never shows stale ship dates.",
+  "key": "sunset",
+  "asOf": "",
+  "rebaseDates": true,
+  "company": "MPL",
+  "d365Environment": "mastronardi-prod.operations.dynamics.com",
+  "pagesProject": "greenhouse-sales-proration",
+  "outDir": "dist-sunset",
+  "seed": 20261124,
+  "persona": { "name": "Dana Whitfield", "username": "dana.whitfield@sunsetgrown.example", "title": "Customer Fulfillment Planner" }
+}

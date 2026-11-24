@@ -23,3 +23,6 @@ Thumbs.db
 
 # rendered booth videos (regenerate with node demo-kit/record.mjs)
 demo-kit/out/
+
+# static scenario builds (regenerate with npm run build:<scenario>)
+dist-*/

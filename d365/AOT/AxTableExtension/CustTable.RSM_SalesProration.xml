@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxTableExtension xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+  <Name>CustTable.RSM_SalesProration</Name>
+  <!-- Customer substitution policy, read by RSMProrationCustomerService and
+       enforced by RSMSubstitutionConsumer / RSMItemSubstitution::findForCustomer;
+       maintained from the web app via RSMSubstitutionRuleConsumer. Add both
+       fields to the customer form's Sales order defaults tab. -->
+  <FieldGroupExtensions />
+  <FieldGroups>
+    <AxTableFieldGroup>
+      <Name>RSMSubstitution</Name>
+      <Label>Item substitution</Label>
+      <Fields>
+        <AxTableFieldGroupField><DataField>RSMSubstitutionPolicy</DataField></AxTableFieldGroupField>
+        <AxTableFieldGroupField><DataField>RSMSubstitutionNote</DataField></AxTableFieldGroupField>
+      </Fields>
+    </AxTableFieldGroup>
+  </FieldGroups>
+  <Fields>
+    <AxTableField xmlns="" i:type="AxTableFieldEnum">
+      <Name>RSMSubstitutionPolicy</Name>
+      <EnumType>RSMSubstitutionPolicy</EnumType>
+      <Label>Substitution policy</Label>
+      <HelpText>Standard: all-customer rules plus this customer's own. Customer rules only: just the rules that name this customer. Never substitute: short lines stay short.</HelpText>
+    </AxTableField>
+    <AxTableField xmlns="" i:type="AxTableFieldString">
+      <Name>RSMSubstitutionNote</Name>
+      <ExtendedDataType>Description255</ExtendedDataType>
+      <Label>Substitution note</Label>
+      <HelpText>Why the policy is set (shown to planners in the proration app).</HelpText>
+    </AxTableField>
+  </Fields>
+</AxTableExtension>

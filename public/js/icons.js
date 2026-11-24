@@ -29,6 +29,8 @@ const RULES = [
                                                         icon: 'citrus',     tint: '#f29f1f' },
   { re: /peach|nectarine|plum|cherry|apricot|stone ?fruit/i,
                                                         icon: 'peach',      tint: '#f08a5d' },
+  { re: /pepper|capsicum|shishito/i,                    icon: 'pepper',     tint: '#e8402f' },
+  { re: /cucumber|cuke/i,                               icon: 'cucumber',   tint: '#3f8f3a' },
   { re: /tomato/i,                                      icon: 'tomato',     tint: '#e2483a' },
   { re: /grape(?!fruit)/i,                              icon: 'grape',      tint: '#7a4ea3' },
   { re: /apple|pear/i,                                  icon: 'apple',      tint: '#d24b3e' },

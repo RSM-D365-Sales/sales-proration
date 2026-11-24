@@ -34,6 +34,8 @@ public class RSMProrationCustomerService
             c.parmParentCustomerId(ct.RSMParentCustomerId);  // group rollup
             c.parmShipToCity(RSMProrationCustomerHelper::primaryShipCity(ct));
             c.parmShipToState(RSMProrationCustomerHelper::primaryShipState(ct));
+            c.parmSubstitutionPolicy(enum2Symbol(enumNum(RSMSubstitutionPolicy), ct.RSMSubstitutionPolicy));
+            c.parmSubstitutionNote(ct.RSMSubstitutionNote);
 
             // Last 4 weeks average fill rate (history-aware input)
             c.parmAvgFillRate4w(
