@@ -26,3 +26,9 @@ demo-kit/out/
 
 # static scenario builds (regenerate with npm run build:<scenario>)
 dist-*/
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+!.env.example
